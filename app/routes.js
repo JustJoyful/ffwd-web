@@ -4,4 +4,5 @@ export default [
   index("routes/home.jsx"),
   route("app", "routes/app.jsx"),
   route("privacy", "routes/privacy.jsx"),
+  route("requirements", "routes/requirements.jsx"),
 ];
