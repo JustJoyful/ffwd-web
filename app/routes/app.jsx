@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router";
 import "../styles/theme.css";
 import "../styles/tool.css";
 import { MAX_RUNS } from "../agent/config.js";
+import { ASK_MAX_CHARS } from "../config.js";
 import { INPUT_ID } from "../agent/browser-runtime.js";
 import AskUser from "../components/tool/AskUser.jsx";
 import CapabilityNotice from "../components/tool/CapabilityNotice.jsx";
@@ -85,7 +86,9 @@ export default function App() {
   // Category-and-number events for the funnel; subscribed before the tool's own start effect fires its first event.
   useEffect(() => bindAnalytics(store), [store]);
   // ?ask= comes from a chore page: it fills the field, the person still presses Enter
-  const [request, setRequest] = useState(params.get("ask") ?? "");
+  const [request, setRequest] = useState(
+    (params.get("ask") ?? "").slice(0, ASK_MAX_CHARS),
+  );
   const [file, setFile] = useState(null);
   const [originalUrl, setOriginalUrl] = useState(null);
   const [dropNotice, setDropNotice] = useState(null);

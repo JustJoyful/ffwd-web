@@ -228,3 +228,14 @@ ol.prose {
   margin-top: 0.5rem;
   color: var(--text-2);
 }
+.chore__diagram > * + * {
+  margin-top: 0.75rem;
+}
+.chore__diagram .probe-line {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.chore__diagram figcaption {
+  color: var(--text-2);
+  font-size: 0.875rem;
+}

@@ -1,8 +1,12 @@
 // Single config module for the site (RULES §6.2). Marketing pages and the tool read their constants from here.
 
+// The longest request a link may pre-fill (/app?ask=). Longer text is cut; it is never sent anywhere.
+export const ASK_MAX_CHARS = 300;
+
 // The public address of the site. The domain is not confirmed (D-046), so this is a reserved placeholder that
 // `pnpm check:release` refuses to publish. Set VITE_SITE_URL at build time, or edit this line once it is decided.
-export const SITE_URL = import.meta.env.VITE_SITE_URL ?? "https://ffwd.example";
+export const SITE_URL =
+  import.meta.env?.VITE_SITE_URL ?? "https://ffwd.example";
 
 // Analytics (ARCHITECTURE §9, WEB_ARCHITECTURE §10). OPEN OWNER QUESTIONS, defaults below follow the architecture:
 // - ANALYTICS_PERSISTENCE: "localStorage" writes a browser-side id before any consent, which the 30/60-day
@@ -25,15 +29,15 @@ export const ANALYTICS_QUEUE_MAX = 50;
  */
 export function analyticsSettings() {
   const scripted =
-    import.meta.env.VITE_SCRIPTED_POLICY === "1"
+    import.meta.env?.VITE_SCRIPTED_POLICY === "1"
       ? globalThis.__ffwdAnalytics
       : null;
   return {
     scripted: Boolean(scripted),
-    key: scripted?.key ?? import.meta.env.VITE_POSTHOG_KEY ?? "",
+    key: scripted?.key ?? import.meta.env?.VITE_POSTHOG_KEY ?? "",
     host:
       scripted?.host ??
-      import.meta.env.VITE_POSTHOG_HOST ??
+      import.meta.env?.VITE_POSTHOG_HOST ??
       "https://us.i.posthog.com",
   };
 }
