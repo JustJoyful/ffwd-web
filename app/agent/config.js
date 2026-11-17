@@ -9,6 +9,8 @@ export const MAX_TURNS = 8;
 export const MAX_ASK_USER = 1;
 // Browser-only: generation cap per model turn (spike config).
 export const MAX_TOKENS = 512;
+// How much of an FFmpeg log goes back to the model (training/config.py STDERR_TAIL_CHARS).
+export const STDERR_TAIL_CHARS = 2000;
 
 // Checker tolerances (checker v1.2). Python twins in training/config.py carry the evidence for each size.
 export const DEFAULT_TIME_TOLERANCE_S = 0.1;
