@@ -21,3 +21,10 @@ dist/
 .react-router/
 .env*
 .compare/
+
+# ffmpeg core copied by scripts/copy-core.mjs (31 MB)
+public/ffmpeg/
+
+# Playwright output
+test-results/
+playwright-report/

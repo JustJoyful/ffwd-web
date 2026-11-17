@@ -15,7 +15,7 @@ import SYSTEM_PROMPT from "../../protocol/prompts/system-v1.txt?raw";
  * @typedef {import("./checker/index.js").Handle} Handle
  * @typedef {import("./checker/index.js").Measure} Measure
  * @typedef {{ id: string, probe: object, handle: Handle }} JobInput one input file, probed
- * @typedef {{ run(action: { args: string[], inputs: string[], outputs: string[] }): Promise<{ ok: boolean, log: string, outputs: Record<string, Handle>, error?: string }> }} Executor
+ * @typedef {{ run(action: { args: string[], inputs: string[], outputs: string[], specs: object[] }): Promise<{ ok: boolean, log: string, outputs: Record<string, Handle>, error?: string }> }} Executor
  * @typedef {object} Run one executed (or rejected) run, kept with its checks even when they failed
  * @property {number} n 1-based
  * @property {string[]} args
@@ -191,6 +191,8 @@ export async function executeRun(
       args: action.args,
       inputs: action.inputs,
       outputs: action.outputs,
+      // The job's output specs decide each output's container and kind (Python: output_path_for(spec)).
+      specs: job.spec.outputs,
     });
   } catch (e) {
     res = { ok: false, log: `executor error: ${message(e)}`, outputs: {} };

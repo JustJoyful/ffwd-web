@@ -24,3 +24,31 @@ export const SSIM_FLOOR_DEFAULT = 0.9;
 export const PSNR_FLOOR_DB_DEFAULT = 28.0;
 export const ORIENTATION_MAX_RATIO = 0.75;
 export const ORIENTATION_MIN_GAP = 4.0;
+
+// ffmpeg.wasm runtime (Plan C). Values the Phase 0 browser spike measured; Python twins noted where there are any.
+// The core (about 31 MB) is copied to public/ffmpeg by scripts/copy-core.mjs; production hosting is Plan D/E.
+export const FFMPEG_CORE_BASE = "/ffmpeg";
+// Re-encodes deadlock in core-mt 0.12.10 when FFmpeg picks its own thread count (copy works, every encode hangs), so
+// the harness caps threads on every output. The same happens with auto decoder threads and two inputs (concat).
+export const FFMPEG_THREADS = 4;
+export const FFMPEG_DECODE_THREADS = 1;
+// Filter graphs hang the same way when FFmpeg picks their thread count (found in Plan C Task 1: a lavfi video+audio
+// encode and the 32x32 thumbnail graph both deadlocked until the graph was single-threaded). Global options.
+export const FFMPEG_FILTER_THREADS = [
+  "-filter_threads",
+  "1",
+  "-filter_complex_threads",
+  "1",
+];
+// One run, in ms. Python RUN_TIMEOUT_S is 120 s; wasm is several times slower than native, so the browser allows
+// more before it gives up (a 4K HEVC decode can take minutes).
+export const RUN_TIMEOUT_MS = 300_000;
+// After the in-core timeout, how long to wait before the page kills the worker itself (a deadlocked core never
+// reaches its own timeout check).
+export const RUN_WATCHDOG_GRACE_MS = 15_000;
+// Above this a logged average frame rate is container junk; use the base rate (training/config.py PROBE_MAX_FPS).
+export const PROBE_MAX_FPS = 1000;
+// Packets read for the A/V offset (training/config.py OFFSET_PACKET_WINDOW).
+export const OFFSET_PACKET_WINDOW = 16;
+// SSIM/PSNR sampling rate (training/config.py QUALITY_SAMPLE_FPS).
+export const QUALITY_SAMPLE_FPS = 2;

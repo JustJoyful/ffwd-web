@@ -9,3 +9,6 @@ mockup*
 *.md
 app/styles/theme.css
 protocol
+public/ffmpeg
+test-results
+playwright-report
