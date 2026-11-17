@@ -7,7 +7,7 @@ export default defineConfig({
       {
         test: {
           name: "unit",
-          include: ["tests/unit/**/*.test.js"],
+          include: ["tests/unit/**/*.test.{js,jsx}"],
           environment: "jsdom",
         },
       },

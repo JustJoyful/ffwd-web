@@ -18,5 +18,7 @@ export default defineConfig({
   plugins: [isolateDevServer, reactRouter()],
   server: { headers: isolation },
   preview: { headers: isolation },
+  // ffmpeg.wasm starts its own module worker from a relative URL, which the dependency optimiser would break.
+  optimizeDeps: { exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util"] },
   worker: { format: "es" },
 });
