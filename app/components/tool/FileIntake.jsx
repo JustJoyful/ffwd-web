@@ -41,7 +41,9 @@ export default function FileIntake({
         }}
       />
       <p className="intake__hint">
-        Or drop one anywhere on this page. It stays on this computer.
+        {disabled
+          ? "You can choose another video when this job is finished."
+          : "Or drop one anywhere on this page. It stays on this computer."}
       </p>
       <p className="intake__note" role="status">
         {shown}

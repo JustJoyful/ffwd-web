@@ -69,12 +69,12 @@ const FIELDS = {
     (e) => `expected ${e} ms`,
   ],
   "quality.min_ssim": [
-    "Picture quality",
-    (x) => `${x.toFixed(3)} similarity`,
+    "Picture match",
+    (x) => x.toFixed(3),
     (e) => `needs at least ${e}`,
   ],
   "quality.min_psnr_db": [
-    "Picture quality",
+    "Picture clarity",
     (x) => `${x.toFixed(1)} dB`,
     (e) => `needs at least ${e} dB`,
   ],
@@ -105,9 +105,11 @@ export function describeCheck({ field, expected, actual, ok }) {
     (e) => `expected ${e}`,
   ];
   const missing = actual === null || actual === undefined;
+  // A passing container check shows the format that was asked for: the probe's name for it is a list ("mov,mp4,...").
+  const shown = field === "container" && ok ? expected : actual;
   return {
     label,
-    value: missing ? "not measured" : show(actual),
+    value: missing ? "not measured" : show(shown),
     why: ok ? null : why(expected),
   };
 }

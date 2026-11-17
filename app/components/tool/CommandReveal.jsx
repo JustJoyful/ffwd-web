@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 import { flagsForChip, quoteArg } from "../../tool/chips.js";
 
 /**
@@ -62,10 +62,12 @@ export default function CommandReveal({ args, chips }) {
           <pre className="cmd" aria-label="The FFmpeg command">
             <span>ffmpeg</span>
             {args.map((a, i) => (
-              <span key={i}>
+              <Fragment key={i}>
                 {" "}
-                {hit.has(i) ? <mark>{quoteArg(a)}</mark> : quoteArg(a)}
-              </span>
+                <span>
+                  {hit.has(i) ? <mark>{quoteArg(a)}</mark> : quoteArg(a)}
+                </span>
+              </Fragment>
             ))}
           </pre>
           <button

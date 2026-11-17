@@ -1,0 +1,461 @@
+/* The /app tool: the home page's window made full size. Only rules the window needs beyond theme.css (never edits
+   the home page's rules or the mockup-v5 tokens). Motion follows DESIGN: transform, opacity and colour only. */
+.tool {
+  --pad: clamp(0.5rem, 2vw, 1.5rem);
+  min-height: 100svh;
+  padding: var(--pad);
+  display: grid;
+}
+.tool__status {
+  padding: 2rem var(--margin);
+  color: var(--text-2);
+}
+.tool .win {
+  width: min(84rem, 100%);
+  margin: 0 auto;
+  min-height: calc(100svh - 2 * var(--pad));
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+.tool .win__bar {
+  grid-template-columns: 1fr auto;
+}
+.tool .win__state {
+  display: inline-flex;
+}
+.tool .win__brand {
+  color: var(--text);
+}
+.tool .win__body {
+  min-height: 0;
+}
+.tool .win__solo {
+  display: grid;
+  place-content: center;
+  padding: 2rem var(--margin);
+}
+.tn {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.dot--busy {
+  background: var(--text-2);
+}
+.dot--starting {
+  background: var(--muted);
+}
+.dot--stopped {
+  background: var(--fail);
+}
+
+/* steps */
+.tool .steps {
+  min-width: 0;
+}
+.tool .step {
+  padding-bottom: 22px;
+}
+.tool .step__body {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.tool .step:not(.is-active):not(.is-done) h3 {
+  color: var(--muted);
+}
+.step__hint,
+.readout__note,
+.intake__hint {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+.step:not(.is-active):not(.is-done) .step__hint {
+  color: var(--muted);
+}
+.readout {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.readout__file {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+.readout__file b {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.readout__file .tn {
+  flex: none;
+  color: var(--text-2);
+  font-size: 0.75rem;
+}
+.readout__note--bad {
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fail) 10%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fail) 45%, transparent);
+  font-size: 0.875rem;
+}
+.probe {
+  grid-template-columns: repeat(2, auto);
+}
+.intake {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  position: relative;
+}
+.intake__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.intake__input:focus-visible + .intake__hint {
+  outline: none;
+}
+.intake:has(.intake__input:focus-visible) .intake__btn {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.intake__btn {
+  cursor: pointer;
+}
+.intake__btn.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.intake__note:empty {
+  display: none;
+}
+.intake__note {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* the request */
+.request {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.ask--field {
+  display: block;
+  width: 100%;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  line-height: 1.35;
+  resize: none;
+  field-sizing: content;
+  min-height: 46px;
+  max-height: 14rem;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.ask--field::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.ask--field[readonly] {
+  color: var(--text-2);
+}
+.questions {
+  display: grid;
+  gap: 10px;
+}
+.questions .ask {
+  overflow-wrap: anywhere;
+}
+.suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* the plan */
+.plan {
+  display: grid;
+  gap: 12px;
+}
+.plan__actions,
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chips {
+  list-style: none;
+}
+.chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.chips--link {
+  margin-bottom: 8px;
+}
+.chips--link li {
+  display: contents;
+}
+.chips--link .chip {
+  cursor: default;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn:disabled:active {
+  transform: none;
+}
+.notice {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.notice__t {
+  font-weight: 600;
+}
+.notice--bad {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fail) 45%, transparent);
+}
+.notice--wide {
+  max-width: 34rem;
+  padding: 20px 22px;
+  font-size: 1rem;
+}
+.notice a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.notice__detail {
+  font: 0.75rem/1.5 var(--mono);
+  color: var(--text-2);
+}
+.loader {
+  display: grid;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+.loader__n {
+  font-size: 2.25rem;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+/* runs and checks */
+.runlog {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.runlog .run + .run {
+  margin-top: 0;
+}
+.run__problem {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--raised);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.run__done {
+  color: var(--pass);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+.ck {
+  min-width: 0;
+}
+.ck b {
+  overflow-wrap: anywhere;
+}
+.progress {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+.progress .bar i {
+  width: 100%;
+  transform-origin: left;
+  transition: transform 300ms var(--ease);
+}
+.save small {
+  overflow-wrap: anywhere;
+}
+.reveal-cmd {
+  margin-top: 4px;
+  min-width: 0;
+}
+.reveal-cmd .cmd {
+  margin-block: 0 8px;
+}
+/* a flag stays whole ("-preset" must not break at its hyphen); only a token wider than the panel is broken */
+.reveal-cmd .cmd span {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.cmd mark {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 0 2px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.again {
+  margin-top: 8px;
+}
+
+/* the picture */
+.stage {
+  align-content: start;
+}
+.viewer-box {
+  display: grid;
+  gap: 10px;
+}
+.viewer--tool {
+  background: var(--viewer);
+  display: grid;
+  place-items: center;
+}
+.viewer--tool video {
+  object-fit: contain;
+}
+.viewer__empty {
+  padding: 1.5rem;
+  max-width: 26rem;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.seg {
+  display: inline-flex;
+  justify-self: start;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.seg button {
+  padding: 6px 12px;
+  border-radius: 7px;
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+.seg button[aria-pressed="true"] {
+  background: var(--strong);
+  color: var(--on-strong);
+  font-weight: 600;
+}
+
+/* drop anywhere */
+.drop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(14 13 12 / 0.97);
+}
+.drop::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 2px dashed var(--accent);
+  border-radius: 18px;
+  pointer-events: none;
+}
+.drop p {
+  position: relative;
+  max-width: 22rem;
+  text-align: center;
+  font: 600 clamp(1.25rem, 4vw, 1.75rem)/1.2 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* checks landing: each row 60 ms after the one before it (the delay is set per row), the tick draws in */
+@media (prefers-reduced-motion: no-preference) {
+  .ck.reveal {
+    transition-delay: var(--delay, 0ms);
+  }
+  .chips .chip.reveal {
+    transition-delay: calc(var(--i, 0) * 60ms);
+  }
+  .ck.is-on .ico path {
+    stroke-dasharray: 24;
+    animation: draw 360ms var(--ease) both;
+    animation-delay: calc(var(--delay, 0ms) + 120ms);
+  }
+}
+@keyframes draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress .bar i {
+    transition: none;
+  }
+}
+@media (max-width: 47.9375em) {
+  .tool .win__bar {
+    padding: 0 12px;
+  }
+  .tool .steps {
+    padding: 14px 14px 18px;
+  }
+  .tool .stage {
+    padding: 12px;
+  }
+}
+
+/* later rules: contrast of the failed-check reason, check label column, the viewer staying in sight while a long log scrolls */
+.ck em {
+  color: color-mix(in srgb, var(--fail) 70%, var(--text));
+}
+.tool .ck {
+  grid-template-columns: 6.75rem 1fr 18px;
+}
+@media (min-width: 60em) {
+  .tool .stage {
+    position: sticky;
+    top: calc(var(--pad) + 8px);
+    align-self: start;
+  }
+}
+.ask--field:focus-visible {
+  border-radius: 10px;
+}

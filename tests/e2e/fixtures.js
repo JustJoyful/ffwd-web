@@ -57,6 +57,16 @@ export const RECIPES = {
     "clip_b.mp4",
     [...video("1280x720", 30, 3), ...audio(3), ...H264, ...AAC],
   ],
+  // The flow specs drop these on the real /app page: a 4 s 720p clip, and the same picture as a .MOV named like an
+  // iPhone file (h264 here: the core has no HEVC encoder, see the note above).
+  e2e_sample: [
+    "sample.mp4",
+    [...video("1280x720", 30, 4), ...audio(4), ...H264, ...AAC],
+  ],
+  e2e_iphone: [
+    "IMG_4021.MOV",
+    [...video("1280x720", 30, 4), ...audio(4), ...H264, ...AAC],
+  ],
   av_late_500: [
     "av_late_500.mp4",
     [
