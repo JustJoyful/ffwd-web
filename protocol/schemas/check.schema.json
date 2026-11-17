@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ffmpeg-agent.dev/protocol/v0.3.0/check",
+  "title": "Check result (ARCHITECTURE §3.4). Produced by deterministic code, never a model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["passed", "checks", "measurements", "error"],
+  "properties": {
+    "passed": {"type": "boolean"},
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "expected", "actual", "ok"],
+        "properties": {"field": {"type": "string"}, "expected": {}, "actual": {}, "ok": {"type": "boolean"}}
+      }
+    },
+    "measurements": {"type": "object"},
+    "error": {"type": ["string", "null"]}
+  }
+}

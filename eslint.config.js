@@ -13,6 +13,7 @@ export default [
       "mockup*/",
       ".taste-skill/",
       ".claude/",
+      "protocol/",
     ],
   },
   js.configs.recommended,

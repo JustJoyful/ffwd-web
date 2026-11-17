@@ -1,0 +1,8 @@
+[
+  {"name": "F1-trim-copy", "family": "F1", "input": "h264_long", "output": "out1.mp4",
+   "args": ["-ss", "3", "-i", "{in:clip}", "-t", "10", "-c", "copy", "{out:out1}"]},
+  {"name": "F4-scale-480p", "family": "F4", "input": "h264_long", "output": "out1.mp4",
+   "args": ["-i", "{in:clip}", "-vf", "scale=-2:480", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "copy", "{out:out1}"]},
+  {"name": "F7-frames-every-2s", "family": "F7", "input": "h264_long", "output": "frames/%04d.png",
+   "args": ["-i", "{in:clip}", "-vf", "fps=1/2", "{out:out1}"]}
+]

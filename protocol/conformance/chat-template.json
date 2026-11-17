@@ -1,0 +1,62 @@
+{
+ "doc": "Golden renders of the agent chat template (D-026). Every runtime must reproduce `rendered` byte for byte.",
+ "cases": [
+  {
+   "name": "single turn, generation prompt",
+   "messages": [
+    {
+     "role": "system",
+     "content": "You are ffmpeg-agent."
+    },
+    {
+     "role": "user",
+     "content": "{\"request\": \"trim\"}"
+    }
+   ],
+   "add_generation_prompt": true,
+   "rendered": "<|im_start|>system\nYou are ffmpeg-agent.<|im_end|>\n<|im_start|>user\n{\"request\": \"trim\"}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+  },
+  {
+   "name": "two turns, generation prompt",
+   "messages": [
+    {
+     "role": "system",
+     "content": "S"
+    },
+    {
+     "role": "user",
+     "content": "U"
+    },
+    {
+     "role": "assistant",
+     "content": "{\"action\": \"run\"}"
+    },
+    {
+     "role": "user",
+     "content": "{\"run_ok\": true}"
+    }
+   ],
+   "add_generation_prompt": true,
+   "rendered": "<|im_start|>system\nS<|im_end|>\n<|im_start|>user\nU<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n{\"action\": \"run\"}<|im_end|>\n<|im_start|>user\n{\"run_ok\": true}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+  },
+  {
+   "name": "finished conversation, no generation prompt",
+   "messages": [
+    {
+     "role": "system",
+     "content": "S"
+    },
+    {
+     "role": "user",
+     "content": "U"
+    },
+    {
+     "role": "assistant",
+     "content": "{\"action\": \"unsupported\"}"
+    }
+   ],
+   "add_generation_prompt": false,
+   "rendered": "<|im_start|>system\nS<|im_end|>\n<|im_start|>user\nU<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n{\"action\": \"unsupported\"}<|im_end|>\n"
+  }
+ ]
+}

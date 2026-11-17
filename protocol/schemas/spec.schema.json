@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ffmpeg-agent.dev/protocol/v0.3.0/spec",
+  "title": "Output spec (ARCHITECTURE §3.2). null = unconstrained; the checker verifies only set fields.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["family", "outputs"],
+  "properties": {
+    "family": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/family"}},
+    "outputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/output"}}
+  },
+  "$defs": {
+    "family": {"enum": ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"]},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,15}$"},
+    "num": {"type": ["number", "null"]},
+    "int": {"type": ["integer", "null"], "minimum": 0},
+    "str": {"type": ["string", "null"], "pattern": "^[A-Za-z0-9_.+-]{1,32}$"},
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "kind": {"enum": ["video", "audio", "image_sequence", "gif"]},
+        "container": {"$ref": "#/$defs/str"},
+        "per_input": {"type": ["boolean", "null"]},
+        "video": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "codec": {"$ref": "#/$defs/str"},
+            "width": {"$ref": "#/$defs/int"},
+            "height": {"$ref": "#/$defs/int"},
+            "fps": {"$ref": "#/$defs/num"},
+            "pix_fmt": {"$ref": "#/$defs/str"},
+            "rotation": {
+              "enum": [0, 90, 180, 270, null],
+              "description": "CONVENTION (single, everywhere): CLOCKWISE degrees. In a spec: the net rotation of the picture a viewer sees, relative to the input's displayed picture, however achieved (display-matrix metadata or re-encoded pixels); 90 = turn right/clockwise, 270 = turn left/counterclockwise, 180 = upside down. The checker measures it from picture content. In a probe result: the clockwise degrees the container's display matrix tells players to apply (ffprobe reports the same angle counterclockwise, so it is negated)."
+            }
+          }
+        },
+        "audio": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "present": {"type": ["boolean", "null"]},
+            "codec": {"$ref": "#/$defs/str"},
+            "loudness_lufs": {"$ref": "#/$defs/num"},
+            "offset_ms": {"$ref": "#/$defs/num"}
+          }
+        },
+        "time": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "start_s": {"$ref": "#/$defs/num"},
+            "end_s": {"$ref": "#/$defs/num"},
+            "tolerance_s": {"$ref": "#/$defs/num"}
+          }
+        },
+        "size_max_bytes": {"$ref": "#/$defs/int"},
+        "quality": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "description": "Minimum picture quality of the output vs the input (checker v1.1). null = unconstrained. Size-target outputs get a default floor from training/config.py even when this is null.",
+          "properties": {"min_ssim": {"$ref": "#/$defs/num"}, "min_psnr_db": {"$ref": "#/$defs/num"}}
+        },
+        "frames": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "interval_s": {"$ref": "#/$defs/num", "description": "One frame at t = k * interval_s for k = 0, 1, 2, ... while t < duration - half a source frame."},
+            "expected_count": {"$ref": "#/$defs/int", "description": "Exact number of images (matched with zero tolerance). With only interval_s set, the checker accepts the strict count, or one fewer when the last sample lies within half an interval of the end (FFmpeg's fps filter drops that final slot; select keeps it). Rule and evidence: training/config.py."},
+            "format": {"enum": ["png", "jpg", null]}
+          }
+        },
+        "lossless": {"type": ["boolean", "null"]}
+      }
+    }
+  }
+}

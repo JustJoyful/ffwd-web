@@ -1,0 +1,10 @@
+{#- ffmpeg-agent chat template (D-026). Qwen3 non-thinking, minus tools and reasoning machinery, with ONE deliberate
+    difference from stock Qwen3: every assistant turn, including history, carries the empty think block. That is
+    exactly the token stream training sees (training/grpo/rollout.py TokenPolicy), so training and every runtime
+    (HF, llama.cpp, WebLLM) render byte-identical prompts. Stock Qwen3 drops the block from earlier assistant turns. -#}
+{%- for message in messages -%}
+{{- '<|im_start|>' + message['role'] + '\n' -}}
+{%- if message['role'] == 'assistant' -%}{{- '<think>\n\n</think>\n\n' -}}{%- endif -%}
+{{- message['content'] + '<|im_end|>\n' -}}
+{%- endfor -%}
+{%- if add_generation_prompt -%}{{- '<|im_start|>assistant\n<think>\n\n</think>\n\n' -}}{%- endif -%}

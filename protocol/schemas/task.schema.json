@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ffmpeg-agent.dev/protocol/v0.3.0/task",
+  "title": "Benchmark/training task (ARCHITECTURE §7.2). gold_spec is null only for ambiguous/unsupported tasks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "split", "source", "request", "inputs", "gold_spec", "families", "difficulty", "flags", "clarification", "reference_runs"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9-]{1,48}$"},
+    "split": {"enum": ["dev", "train", "toy", "test-iid", "test-compositional", "test-phrasing", "test-real"]},
+    "style": {"type": ["string", "null"], "description": "Phrasing style the request was rendered in (taskgen v1); held-out styles populate test-phrasing."},
+    "content_key": {"type": ["string", "null"], "description": "sha256 of (families, inputs, gold_spec): paraphrases/styles of one task share it, and splits are assigned by it."},
+    "source": {"type": "string"},
+    "request": {"type": "string", "minLength": 1},
+    "inputs": {"type": "array", "minItems": 1, "items": {"$ref": "spec#/$defs/id"}},
+    "gold_spec": {"anyOf": [{"$ref": "spec"}, {"type": "null"}]},
+    "families": {"type": "array", "items": {"$ref": "spec#/$defs/family"}, "description": "At least one family, except unsupported tasks, which belong to none (empty list; spike-v0 still lists a nominal family there, spike-v1 requires [])."},
+    "nearest_supported": {"anyOf": [{"$ref": "spec#/$defs/family"}, {"type": "null"}], "description": "Unsupported tasks only: the closest supported family the agent may name in its `unsupported` action, or null when nothing is close. Optional elsewhere."},
+    "difficulty": {"type": "integer", "minimum": 1, "maximum": 4},
+    "flags": {
+      "type": "object", "additionalProperties": false, "required": ["ambiguous", "unsupported"],
+      "properties": {"ambiguous": {"type": "boolean"}, "unsupported": {"type": "boolean"}}
+    },
+    "clarification": {"type": ["string", "null"]},
+    "reference_runs": {"anyOf": [{"type": "array", "minItems": 1, "items": {"$ref": "action#/$defs/run"}}, {"type": "null"}]}
+  },
+  "if": {"properties": {"flags": {"properties": {"unsupported": {"const": true}}}}},
+  "else": {"properties": {"families": {"minItems": 1}}}
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ffmpeg-agent.dev/protocol/v0.3.0/action",
+  "title": "One model action per turn (ARCHITECTURE §3.1). check is not an action: the harness runs it.",
+  "oneOf": [
+    {"$ref": "#/$defs/spec"},
+    {"$ref": "#/$defs/ask_user"},
+    {"$ref": "#/$defs/unsupported"},
+    {"$ref": "#/$defs/run"},
+    {"$ref": "#/$defs/finish"}
+  ],
+  "$defs": {
+    "ids": {"type": "array", "items": {"$ref": "spec#/$defs/id"}},
+    "spec": {
+      "type": "object", "additionalProperties": false, "required": ["action", "spec"],
+      "properties": {"action": {"const": "spec"}, "spec": {"$ref": "spec"}}
+    },
+    "ask_user": {
+      "type": "object", "additionalProperties": false, "required": ["action", "question"],
+      "properties": {"action": {"const": "ask_user"}, "question": {"type": "string", "minLength": 1, "maxLength": 300}}
+    },
+    "unsupported": {
+      "type": "object", "additionalProperties": false, "required": ["action", "reason"],
+      "properties": {
+        "action": {"const": "unsupported"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 300},
+        "nearest_supported": {"anyOf": [{"$ref": "spec#/$defs/family"}, {"type": "null"}]}
+      }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false, "required": ["action", "args", "inputs", "outputs"],
+      "properties": {
+        "action": {"const": "run"},
+        "args": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "string", "maxLength": 512}},
+        "inputs": {"$ref": "#/$defs/ids"},
+        "outputs": {"$ref": "#/$defs/ids", "minItems": 1}
+      }
+    },
+    "finish": {
+      "type": "object", "additionalProperties": false, "required": ["action", "outputs"],
+      "properties": {
+        "action": {"const": "finish"},
+        "outputs": {"$ref": "#/$defs/ids"},
+        "note": {"type": "string", "maxLength": 300}
+      }
+    }
+  }
+}
