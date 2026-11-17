@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Links, Outlet, Scripts, useLocation } from "react-router";
+import { Links, Meta, Outlet, Scripts, useLocation } from "react-router";
 import "./styles/fonts.css";
 import { initAnalytics } from "./lib/analytics.js";
 import { landingFromPath, siteVisit } from "./tool/analytics-bridge.js";
@@ -15,6 +15,18 @@ const headScript = `
   })();
 `;
 
+// The default title and description (the home page and the tool). A route with its own meta() replaces them.
+export function meta() {
+  return [
+    { title: "ffwd: describe the chore, get a checked video" },
+    {
+      name: "description",
+      content:
+        "A free tool that cuts, converts and fixes video from one sentence. It runs on your own computer, never uploads your video, and checks every result.",
+    },
+  ];
+}
+
 export function Layout({ children }) {
   // suppressHydrationWarning on <html>: the inline head script adds the "js" class (and ?theme / ?font
   // attributes) before React hydrates, so the attributes differ from the server markup on purpose.
@@ -23,11 +35,7 @@ export function Layout({ children }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>ffwd: describe the chore, get a checked video</title>
-        <meta
-          name="description"
-          content="A free tool that cuts, converts and fixes video from one sentence. It runs on your own computer, never uploads your video, and checks every result."
-        />
+        <Meta />
         <meta name="color-scheme" content="dark" />
         <script dangerouslySetInnerHTML={{ __html: headScript }} />
         <Links />

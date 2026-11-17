@@ -6,7 +6,7 @@ test("release check reports the known unfinished content", () => {
   // It exits non-zero by design while placeholders remain in the built site.
   expect(r.status).not.toBe(0);
   const out = r.stdout + r.stderr;
-  for (const s of ["[contact address]", "[role line]", "[Confirm on the built site", "(Mockup"]) {
+  for (const s of ["[contact address]", "[role line]", "[Confirm on the built site", "[Confirm IP capture", "(Mockup"]) {
     expect(out).toContain(s);
   }
 });

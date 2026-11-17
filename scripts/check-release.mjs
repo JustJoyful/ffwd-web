@@ -8,6 +8,7 @@ const UNFINISHED = [
   "[contact address]",
   "[role line]",
   "[Confirm on the built site",
+  "[Confirm IP capture",
   "(Mockup",
 ];
 
@@ -15,7 +16,7 @@ function* files(dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
     if (e.isDirectory()) yield* files(p);
-    else if (p.endsWith(".js") || p === join(OUT, "index.html")) yield p;
+    else if (p.endsWith(".js") || p.endsWith(".html")) yield p;
   }
 }
 
