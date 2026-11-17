@@ -8,6 +8,32 @@
 export const MIN_DEVICE_MEMORY_GB = 4;
 const MOBILE_UA = /Android|iPhone|iPad|iPod|Mobile/i;
 
+// File intake. A file is a video when the browser says so (type video/*) or its extension is listed here (MKV and
+// some MOV files arrive with no type).
+export const ACCEPTED_EXTENSIONS = [
+  ".mp4",
+  ".m4v",
+  ".mov",
+  ".mkv",
+  ".webm",
+  ".avi",
+  ".mpg",
+  ".mpeg",
+  ".mts",
+  ".m2ts",
+  ".3gp",
+  ".wmv",
+  ".flv",
+  ".ogv",
+];
+// shortcut: a proposal, not a measurement. The video is held in memory about three times (the file, its copy inside
+// ffmpeg.wasm, and the output), so a warning starts at 128 MiB per GB of device memory (4 GB assumed when the browser
+// does not say). It warns and never blocks: a file that really cannot be read ends as "can't be read". Needs real devices.
+export const MAX_FILE_BYTES_PER_GB = 128 * 1024 * 1024;
+/** Above this size the person is warned, not stopped. @param {number} [deviceMemoryGb] */
+export const maxFileBytes = (deviceMemoryGb = 4) =>
+  deviceMemoryGb * MAX_FILE_BYTES_PER_GB;
+
 /** @typedef {"no-isolation" | "no-webgpu" | "low-memory" | "mobile"} CapabilityReason */
 
 /** What the page sees. WebGPU is only required with the real model, so a scripted build (tests) skips it. */
