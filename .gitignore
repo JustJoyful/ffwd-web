@@ -1,0 +1,22 @@
+# Design mockups stay local and untracked (owner decision, 23 Nov 2026)
+mockup/
+mockup-v2/
+mockup-v3/
+mockup-v4/
+mockup-v5/
+
+# Local tooling and reference material, not part of the site
+.claude/
+.taste-skill/
+tasteskill.mp4
+
+# Markdown notes and design docs stay local; only CREDITS.md is tracked (owner decision, 23 Nov 2026)
+*.md
+!CREDITS.md
+
+# Build and dependencies
+node_modules/
+build/
+dist/
+.react-router/
+.env*
