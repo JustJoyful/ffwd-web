@@ -13,8 +13,10 @@ const headScript = `
 `;
 
 export function Layout({ children }) {
+  // suppressHydrationWarning on <html>: the inline head script adds the "js" class (and ?theme / ?font
+  // attributes) before React hydrates, so the attributes differ from the server markup on purpose.
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

@@ -1,7 +1,11 @@
+import { useEffect, useRef } from "react";
 import "../styles/theme.css";
+import { mountSections } from "../showcase/sections.js";
+import { mountShowcase } from "../showcase/showcase.js";
 
 // Static markup ported 1:1 from mockup-v5/index.html. No state and no props, so React never re-renders it:
-// the showcase and sections modules own the demo DOM after mount.
+// the showcase and sections modules own the demo DOM after mount. The effect mounts both on <main> and its
+// cleanup undoes them, which keeps StrictMode (mount, unmount, mount) and client-side navigation clean.
 
 const Logo = () => (
   <svg viewBox="0 0 28 20" aria-hidden="true">
@@ -25,6 +29,16 @@ const Fail = () => (
 );
 
 export default function Home() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const a = mountShowcase(ref.current);
+    const b = mountSections(ref.current);
+    return () => {
+      a();
+      b();
+    };
+  }, []);
+
   return (
     <>
       <header className="nav">
@@ -45,7 +59,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main id="main">
+      <main id="main" ref={ref}>
         <div className="top">
           <section className="intro" aria-labelledby="h1">
             <h1 id="h1">

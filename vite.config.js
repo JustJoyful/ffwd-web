@@ -2,8 +2,20 @@ import { defineConfig } from "vite";
 import { reactRouter } from "@react-router/dev/vite";
 import { isolation } from "./isolation-headers.js";
 
+// `server.headers` does not reach the HTML document that React Router's dev middleware renders,
+// so the dev server would not be cross-origin isolated. This middleware sets them on every response.
+const isolateDevServer = {
+  name: "isolate-dev-server",
+  configureServer(server) {
+    server.middlewares.use((_req, res, next) => {
+      for (const [k, v] of Object.entries(isolation)) res.setHeader(k, v);
+      next();
+    });
+  },
+};
+
 export default defineConfig({
-  plugins: [reactRouter()],
+  plugins: [isolateDevServer, reactRouter()],
   server: { headers: isolation },
   preview: { headers: isolation },
   worker: { format: "es" },
