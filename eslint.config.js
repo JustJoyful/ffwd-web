@@ -31,6 +31,7 @@ export default [
       ...react.configs["jsx-runtime"].rules,
       ...reactHooks.configs.recommended.rules,
       "react/prop-types": "off",
+      "react/no-unescaped-entities": "off", // apostrophes in copy are valid JSX text
     },
   },
 ];

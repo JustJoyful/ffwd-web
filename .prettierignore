@@ -7,3 +7,4 @@ mockup*
 .taste-skill
 .claude
 *.md
+app/styles/theme.css
