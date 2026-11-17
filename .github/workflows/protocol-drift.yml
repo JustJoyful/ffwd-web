@@ -1,0 +1,24 @@
+# Drift alarm (D-047): once a week, compare the pinned protocol/ with the ffwd repo's latest packages/protocol.
+# Fails when the files or the protocol version differ (source_commit is ignored: it moves with every commit there).
+# Needs two repository settings the owner supplies: variable PROTOCOL_SOURCE_REPO (owner/name of the ffwd repo) and,
+# if that repo is private, secret PROTOCOL_SOURCE_TOKEN (read-only). Until the variable is set the job is skipped.
+name: protocol-drift
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+jobs:
+  drift:
+    if: ${{ vars.PROTOCOL_SOURCE_REPO != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.PROTOCOL_SOURCE_REPO }}
+          token: ${{ secrets.PROTOCOL_SOURCE_TOKEN || github.token }}
+          path: protocol-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/sync-protocol.mjs --from protocol-source --check

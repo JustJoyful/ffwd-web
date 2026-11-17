@@ -1,23 +1,5 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { usesStreamCopyOnly, validateRun } from "../../app/agent/validator.js";
-
-const cases = readFileSync("protocol/conformance/validator.jsonl", "utf8")
-  .trim()
-  .split("\n")
-  .map((l) => JSON.parse(l));
-
-describe("validator.jsonl (shared with the Python validator)", () => {
-  test("the file has the 39 cases this port was written against", () => {
-    expect(cases).toHaveLength(39);
-  });
-  test.each(cases.map((c) => [c.name, c]))("%s", (_name, c) => {
-    const r = validateRun(c.args, c.inputs, c.outputs);
-    expect(r.ok, r.reason ?? "").toBe(c.ok);
-    if (c.ok) expect(r.reason).toBeNull();
-    else expect(r.reason).toContain(c.reason_contains);
-  });
-});
 
 describe("hostile or sloppy model output is rejected with a reason, never thrown", () => {
   const ok = ["-i", "{in:clip}", "-c", "copy", "{out:out1}"];

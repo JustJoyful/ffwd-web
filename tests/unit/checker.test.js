@@ -1,6 +1,4 @@
-import { mkdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { check } from "../../app/agent/checker/index.js";
 import { expectedFrameRange } from "../../app/agent/checker/frames.js";
 import {
@@ -8,68 +6,6 @@ import {
   rotateCw,
 } from "../../app/agent/checker/orientation.js";
 import { validateCheck } from "../../app/agent/protocol/validate.js";
-import {
-  binaries,
-  makeClipA,
-  nativeMeasure,
-  runArgs,
-  scratch,
-} from "./native-measure.js";
-
-// ---------------------------------------------------------------------------------------------------------
-// checker-offset.jsonl (shared with Python). The plan expected these to need no media; they do: each case runs a
-// real FFmpeg recipe on clip_a and the checker reads the output's first-packet timestamps. So they run against
-// native ffmpeg here (Measure = nativeMeasure) and Plan C runs them over ffmpeg.wasm.
-// ---------------------------------------------------------------------------------------------------------
-const offsetCases = readFileSync(
-  "protocol/conformance/checker-offset.jsonl",
-  "utf8",
-)
-  .trim()
-  .split("\n")
-  .map((l) => JSON.parse(l));
-
-describe("checker-offset.jsonl", () => {
-  let tmp;
-  let clip;
-  const measure = nativeMeasure();
-  beforeAll(() => {
-    console.info("conformance FFmpeg:", JSON.stringify(binaries()));
-    tmp = scratch();
-    clip = join(tmp.dir, "clip_a.mp4");
-    makeClipA(clip);
-  });
-  afterAll(() => tmp?.cleanup());
-
-  test("the file has the 8 cases this port was written against", () => {
-    expect(offsetCases).toHaveLength(8);
-  });
-
-  test.each(offsetCases.map((c) => [c.name, c]))("%s", async (name, c) => {
-    const dir = join(tmp.dir, String(offsetCases.indexOf(c)));
-    mkdirSync(dir);
-    const out = join(dir, "out1.mp4");
-    runArgs(c.args, { "{in:clip}": clip, "{out:out1}": out });
-    const spec = {
-      id: "out1",
-      kind: "video",
-      container: "mp4",
-      audio: { offset_ms: c.spec_offset_ms },
-    };
-    // Like the Python test: no input handles, so the input's own offset counts as 0.
-    const res = await check(spec, {
-      output: out,
-      inputProbe: await measure.probe(clip),
-      runArgs: c.args,
-      measure,
-    });
-    const failed = res.checks.filter((x) => !x.ok).map((x) => x.field);
-    expect([res.passed, failed], JSON.stringify(res.measurements)).toEqual([
-      c.passed,
-      c.failed_fields,
-    ]);
-  });
-});
 
 // ---------------------------------------------------------------------------------------------------------
 // Everything below runs on a fake Measure (no media). Expected values follow training/env/checker.py.

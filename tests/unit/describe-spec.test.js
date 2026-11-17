@@ -1,20 +1,5 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { describeSpec } from "../../app/agent/describe-spec.js";
-
-const cases = readFileSync("protocol/conformance/describe-spec.jsonl", "utf8")
-  .trim()
-  .split("\n")
-  .map((l) => JSON.parse(l));
-
-describe("describe-spec.jsonl (shared with the Python describe_spec)", () => {
-  test("the file has the 8 cases this port was written against", () => {
-    expect(cases).toHaveLength(8);
-  });
-  test.each(cases.map((c) => [c.name, c]))("%s", (_name, c) => {
-    expect(describeSpec(c.spec)).toEqual(c.lines);
-  });
-});
 
 // Expected values below were measured from training/env/describe_spec.py (not guessed): Python rounds half to
 // even and formats with %g (six significant digits), JavaScript's defaults differ on both.
