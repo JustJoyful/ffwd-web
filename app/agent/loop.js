@@ -25,6 +25,7 @@ import SYSTEM_PROMPT from "../../protocol/prompts/system-v1.txt?raw";
  * @property {boolean} passed every spec output was produced and passed
  * @property {Array<{ output: string, field: string, expected: unknown, actual: unknown, ok: boolean }>} checks
  * @property {string[]} errors per-output check errors ("out1: output has no media")
+ * @property {Record<string, Handle>} outputs what FFmpeg wrote, by output id (the page reads the passing one to save it)
  */
 
 /**
@@ -160,6 +161,7 @@ export async function executeRun(
     passed: false,
     checks: [],
     errors: [],
+    outputs: {},
   };
   const finish = (obs, passed) => {
     entry.passed = passed;
@@ -205,6 +207,7 @@ export async function executeRun(
     );
   }
   entry.ok = true;
+  entry.outputs = res.outputs;
   hooks.onChecking?.();
 
   const gold = new Map(job.spec.outputs.map((o) => [o.id, o]));

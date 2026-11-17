@@ -209,6 +209,8 @@ describe("executeRun: validate, execute, check (training/env/loop.py _do_run)", 
     });
     expect(good.passed).toBe(true);
     expect(job.history.map((h) => h.passed)).toEqual([false, true]);
+    // the page reads the passing run's output to offer it for download
+    expect(good.run.outputs).toEqual({ out1: "run1/out1" });
   });
   test("an output the spec lists but the run did not write is missing and fails the run", async () => {
     const job = checkingJob();

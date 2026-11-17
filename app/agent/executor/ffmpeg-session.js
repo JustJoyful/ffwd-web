@@ -24,6 +24,14 @@ export class FfmpegSession {
     /** @type {Promise<unknown> | null} */
     this.loading = null;
     this.queue = Promise.resolve();
+    /** @type {Set<(ratio: number) => void>} */
+    this.progressListeners = new Set();
+  }
+
+  /** Listen to FFmpeg's own progress (0 to 1) while a command runs. Returns the unsubscribe function. */
+  onProgress(fn) {
+    this.progressListeners.add(fn);
+    return () => this.progressListeners.delete(fn);
   }
 
   /** Load the core once (blob URLs for core, wasm and the pthread worker, as the ffmpeg.wasm docs do for core-mt). */
@@ -66,6 +74,12 @@ export class FfmpegSession {
       let log = "";
       const onLog = ({ message }) => (log += message + "\n");
       ff.on("log", onLog);
+      // ffmpeg.wasm derives the ratio from the log's time and the input duration; it can overshoot, so clamp it.
+      const onProg = ({ progress }) => {
+        const ratio = Math.min(1, Math.max(0, progress));
+        for (const fn of this.progressListeners) fn(ratio);
+      };
+      ff.on("progress", onProg);
       const started = performance.now();
       let watchdog;
       try {
@@ -88,6 +102,7 @@ export class FfmpegSession {
       } finally {
         clearTimeout(watchdog);
         ff.off("log", onLog);
+        ff.off("progress", onProg);
       }
     });
   }
