@@ -4,6 +4,8 @@
 // protocol/conformance/describe-spec.jsonl line for line, so the two number formatters below copy Python's
 // behaviour (round half to even, %g) rather than JavaScript's defaults.
 
+import { pyRound } from "./numbers.js";
+
 const KIND = {
   video: "a video",
   audio: "an audio file",
@@ -24,12 +26,6 @@ const CODEC = {
   mp3: "MP3",
   opus: "Opus",
 };
-
-/** Python's round(): halves go to the even neighbour (12.5 -> 12, 13.5 -> 14). */
-function pyRound(x) {
-  const r = Math.round(x);
-  return Math.abs(x % 1) === 0.5 && r % 2 !== 0 ? r - 1 : r;
-}
 
 /** Python's f"{x:g}": six significant digits, trailing zeros dropped, exponent form below 1e-4 and from 1e6. */
 function fmtG(x) {
