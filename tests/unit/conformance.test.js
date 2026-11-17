@@ -28,7 +28,8 @@ const WIRED = {
   "describe-spec.jsonl": 8,
   "checker-offset.jsonl": 8,
 };
-// Need real media decoded by ffmpeg.wasm (and, for rotation, the native-only recipes): Plan C Task 2 enables them.
+// Need real media decoded by ffmpeg.wasm. Rotation runs its wasm cases in the browser (see the end of this file);
+// the other three are not enabled yet.
 const MEDIA_TODO = {
   "checker-frames.jsonl": 9,
   "checker-invariants.jsonl": 13,
@@ -123,7 +124,20 @@ describe("checker-offset.jsonl", () => {
   );
 });
 
+// The media cases run in a real browser over ffmpeg.wasm: tests/e2e/conformance.spec.js (pnpm e2e). Offset: all 8.
+// Rotation: the cases whose `runtimes` include "wasm-5.1"; the rest are native-only and listed there as skipped.
 describe("media cases (Plan C Task 2)", () => {
-  for (const [file, n] of Object.entries(MEDIA_TODO))
-    test.todo(`${file} (${n} cases) over ffmpeg.wasm`);
+  test("checker-rotation: 5 wasm cases run in the browser, 7 are native only", () => {
+    const wasm = cases("checker-rotation.jsonl").filter((c) =>
+      c.runtimes.includes("wasm-5.1"),
+    );
+    expect(wasm).toHaveLength(5);
+  });
+  // Not run in the browser yet (outside the Task 2 scope: they need recipes ffmpeg.wasm cannot encode or a long clip).
+  for (const file of [
+    "checker-frames.jsonl",
+    "checker-invariants.jsonl",
+    "checker-quality.jsonl",
+  ])
+    test.todo(`${file} (${MEDIA_TODO[file]} cases) over ffmpeg.wasm`);
 });

@@ -9,7 +9,12 @@ import {
 } from "../config.js";
 import { parseFfmpegProbe } from "./probe-log.js";
 
-const HEAD = ["-hide_banner", "-nostdin", ...FFMPEG_FILTER_THREADS];
+// -loglevel is set explicitly: the core keeps FFmpeg's global log level between commands, so one command that lowered it
+// (or a model run that did) would leave the next probe with an empty log.
+const HEAD = [
+  ...["-hide_banner", "-nostdin", "-loglevel", "info"],
+  ...FFMPEG_FILTER_THREADS,
+];
 // Decoder threads capped on every input, as for runs (see executor/harness-args.js).
 const IN = (h) => ["-threads", "1", "-i", h];
 const NULL_OUT = ["-f", "null", "-"];
@@ -118,7 +123,7 @@ export class BrowserMeasure {
     const out = "scratch-thumb.raw";
     const r = await this.session.exec([
       ...HEAD,
-      ...["-v", "error", ...IN(h)],
+      ...IN(h),
       ...[
         "-frames:v",
         "1",

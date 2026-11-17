@@ -55,7 +55,13 @@ export function createBrowserRuntime({ coreBase, timeoutMs } = {}) {
         file.name,
         new Uint8Array(await file.arrayBuffer()),
       );
-      const { log } = await session.exec(["-hide_banner", "-i", handle]);
+      const { log } = await session.exec([
+        "-hide_banner",
+        "-loglevel",
+        "info",
+        "-i",
+        handle,
+      ]);
       const probe = parseFfmpegProbe(
         log,
         /** @type {number} */ (sizes.get(handle)),

@@ -71,7 +71,9 @@ export class BrowserExecutor {
     }
 
     const argv = [
-      ...["-hide_banner", "-nostdin", "-y", ...FFMPEG_FILTER_THREADS],
+      // -loglevel: see browser-measure.js (the level survives between commands in the core).
+      ...["-hide_banner", "-nostdin", "-y", "-loglevel", "info"],
+      ...FFMPEG_FILTER_THREADS,
       ...harnessArgs(args, this.inputPaths, targets),
     ];
     const r = await this.session.exec(argv, { timeoutMs: this.timeoutMs });

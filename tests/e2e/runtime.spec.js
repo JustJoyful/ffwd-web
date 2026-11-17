@@ -169,3 +169,22 @@ test("measure.loudness returns null for a clip with no audio", async () => {
   // A 440 Hz sine at full scale from lavfi is loud but finite.
   expect(typeof withAudio).toBe("number");
 });
+
+test("measure.quality of a clip against itself is perfect, and of a re-encode it is high but not perfect", async () => {
+  const [same, lossy] = await inPage(async (rt) => {
+    const res = await rt.executor.run({
+      args: ["-i", "{in:clip}", "-c:v", "libx264", "-crf", "35", "{out:out1}"],
+      inputs: ["clip"],
+      outputs: ["out1"],
+      specs: [{ id: "out1", kind: "video", container: "mp4" }],
+    });
+    rt.executor.setInputs({ clip: window.genHandle });
+    return [
+      await rt.measure.quality(window.genHandle, window.genHandle, 640, 360),
+      await rt.measure.quality(window.genHandle, res.outputs.out1, 640, 360),
+    ];
+  });
+  expect(same).toEqual({ ssim: 1, psnr_db: 100 });
+  expect(lossy.ssim).toBeLessThan(1);
+  expect(lossy.ssim).toBeGreaterThan(0.5);
+});
