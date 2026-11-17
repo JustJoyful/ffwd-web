@@ -18,6 +18,7 @@ import RunProgress from "../components/tool/RunProgress.jsx";
 import StatusDot from "../components/tool/StatusDot.jsx";
 import Unsupported from "../components/tool/Unsupported.jsx";
 import Viewer from "../components/tool/Viewer.jsx";
+import { bindAnalytics } from "../tool/analytics-bridge.js";
 import { chipsFromSpec, displayArgs } from "../tool/chips.js";
 import { useTool } from "../tool/store.js";
 
@@ -81,6 +82,8 @@ function Step({ n, title, mod, children }) {
 export default function App() {
   const [params] = useSearchParams();
   const { state, dispatch, store } = useTool();
+  // Category-and-number events for the funnel; subscribed before the tool's own start effect fires its first event.
+  useEffect(() => bindAnalytics(store), [store]);
   // ?ask= comes from a chore page: it fills the field, the person still presses Enter
   const [request, setRequest] = useState(params.get("ask") ?? "");
   const [file, setFile] = useState(null);

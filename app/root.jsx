@@ -1,5 +1,8 @@
-import { Links, Outlet, Scripts } from "react-router";
+import { useEffect } from "react";
+import { Links, Outlet, Scripts, useLocation } from "react-router";
 import "./styles/fonts.css";
+import { initAnalytics } from "./lib/analytics.js";
+import { landingFromPath, siteVisit } from "./tool/analytics-bridge.js";
 
 // Same inline script as mockup-v5: runs before paint so the "js" class and ?theme / ?font previews never flash.
 const headScript = `
@@ -37,6 +40,16 @@ export function Layout({ children }) {
   );
 }
 
+let visited = false; // module state: StrictMode runs effects twice in dev, a page load is one visit
 export default function Root() {
+  const { pathname } = useLocation();
+  // One site_visit per page load (the path only matters on the first render). Nothing is sent without a PostHog key.
+  useEffect(() => {
+    if (visited) return;
+    visited = true;
+    initAnalytics();
+    siteVisit({ landing: landingFromPath(pathname) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return <Outlet />;
 }
