@@ -16,7 +16,7 @@ tasteskill.mp4
 
 # Build and dependencies
 node_modules/
-build/
+/build/
 dist/
 .react-router/
 .env*

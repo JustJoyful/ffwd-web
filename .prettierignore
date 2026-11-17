@@ -1,0 +1,9 @@
+build
+.react-router
+.compare
+node_modules
+pnpm-lock.yaml
+mockup*
+.taste-skill
+.claude
+*.md
