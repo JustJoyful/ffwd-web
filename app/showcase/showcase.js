@@ -2,6 +2,7 @@
 // mountShowcase(root) builds the tabs and thumbnails inside `root`, runs the demo, and returns a cleanup function
 // that stops every timer, frame, listener and media-query listener and removes what it injected, so React
 // StrictMode (mount, unmount, mount) and leaving the page leave nothing behind.
+import { SITE_URL } from "../config.js";
 import { CHORES, D } from "../content/showcase-chores.js";
 import { fmt } from "../lib/format.js";
 
@@ -27,7 +28,16 @@ const icon = (ok) => {
   return s;
 };
 
-export function mountShowcase(root, { search = location.search } = {}) {
+// `assign` and `clipboard` are injected by tests; by default a click navigates with a full page load (the tool needs
+// the cross-origin isolation headers of its own document) and the clipboard is the browser's.
+export function mountShowcase(
+  root,
+  {
+    search = location.search,
+    assign = (url) => location.assign(url),
+    clipboard = globalThis.navigator?.clipboard,
+  } = {},
+) {
   const $ = (s, r = root) => r.querySelector(s);
   const $$ = (s, r = root) => [...r.querySelectorAll(s)];
   const ac = new AbortController();
@@ -366,9 +376,25 @@ export function mountShowcase(root, { search = location.search } = {}) {
     (e) => {
       if (e.target.closest("[data-choose]")) {
         e.preventDefault();
-        status.textContent = narrow.matches
-          ? "Link copied. Open it on your laptop. (Mockup)"
-          : "Next, the tool opens. (Mockup: the tool is not built yet.)";
+        if (!narrow.matches) return assign("/app");
+        // A phone can't run the tool: copy the link so it can be opened on a laptop. If the clipboard is missing or
+        // refuses, show the link as text so it can still be copied by hand.
+        const url = `${SITE_URL}/app`;
+        Promise.resolve()
+          .then(() => clipboard.writeText(url))
+          .then(
+            () => "Link copied. Open it on your laptop.",
+            () => `Open this link on your laptop: ${url}`,
+          )
+          .then((text) => {
+            if (signal.aborted) return;
+            status.textContent = text;
+            // the button that was pressed may be far from the status line (the nav, the closing section)
+            status.scrollIntoView({
+              behavior: reduced ? "auto" : "smooth",
+              block: "center",
+            });
+          });
       }
       if (e.target.closest("[data-sample]")) {
         stopCycle();
@@ -378,9 +404,6 @@ export function mountShowcase(root, { search = location.search } = {}) {
           block: "center",
         });
       }
-      if (e.target.closest("[data-dl]"))
-        status.textContent =
-          "In the real tool this saves the checked file. (Mockup)";
     },
     { signal },
   );

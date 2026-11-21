@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { SITE_URL } from "../../app/config.js";
 import { mountShowcase } from "../../app/showcase/showcase.js";
 import {
   PHONE,
@@ -162,28 +163,66 @@ describe("mountShowcase", () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
-  test("[data-choose] shows a status message and calls preventDefault", () => {
-    mount();
+  test("[data-choose] on a wide screen opens the tool with a full page load", () => {
+    const assign = vi.fn();
+    mount({ assign });
     const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
     root.querySelector("[data-choose]").dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(true);
-    expect(status().textContent).toBe(
-      "Next, the tool opens. (Mockup: the tool is not built yet.)",
-    );
+    expect(assign).toHaveBeenCalledWith("/app");
+    expect(status().textContent).toBe("");
   });
 
-  test("narrow screens: the first call to action reads Send to my laptop, and cleanup restores it", () => {
-    stubMatchMedia({ [PHONE]: true });
-    const cleanup = mount();
-    const cta = root.querySelector(".ctas [data-choose]");
-    expect(cta.textContent).toBe("Send to my laptop");
-    const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
-    cta.dispatchEvent(ev);
-    expect(status().textContent).toBe(
-      "Link copied. Open it on your laptop. (Mockup)",
-    );
-    cleanup();
-    expect(cta.textContent).toBe("Choose a video");
+  describe("narrow screens", () => {
+    const click = (cta) =>
+      cta.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
+
+    test("the first call to action reads Send to my laptop, and cleanup restores it", () => {
+      stubMatchMedia({ [PHONE]: true });
+      const cleanup = mount();
+      const cta = root.querySelector(".ctas [data-choose]");
+      expect(cta.textContent).toBe("Send to my laptop");
+      cleanup();
+      expect(cta.textContent).toBe("Choose a video");
+    });
+
+    test("a click copies SITE_URL/app and says so; it does not navigate", async () => {
+      stubMatchMedia({ [PHONE]: true });
+      const assign = vi.fn();
+      const writeText = vi.fn().mockResolvedValue();
+      mount({ assign, clipboard: { writeText } });
+      click(root.querySelector(".ctas [data-choose]"));
+      await vi.waitFor(() =>
+        expect(status().textContent).toBe(
+          "Link copied. Open it on your laptop.",
+        ),
+      );
+      expect(writeText).toHaveBeenCalledWith(`${SITE_URL}/app`);
+      expect(assign).not.toHaveBeenCalled();
+    });
+
+    test("when the clipboard rejects, the link is shown as text", async () => {
+      stubMatchMedia({ [PHONE]: true });
+      mount({
+        clipboard: { writeText: vi.fn().mockRejectedValue(new Error()) },
+      });
+      click(root.querySelector(".ctas [data-choose]"));
+      await vi.waitFor(() =>
+        expect(status().textContent).toContain(`${SITE_URL}/app`),
+      );
+      expect(status().textContent).not.toContain("Link copied");
+    });
+
+    test("when there is no clipboard, the link is shown as text", async () => {
+      stubMatchMedia({ [PHONE]: true });
+      mount({ clipboard: null });
+      click(root.querySelector(".ctas [data-choose]"));
+      await vi.waitFor(() =>
+        expect(status().textContent).toContain(`${SITE_URL}/app`),
+      );
+    });
   });
 
   test("arrow keys move between tabs and stop the cycle", () => {

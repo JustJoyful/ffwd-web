@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 import { expect, test } from "vitest";
 
@@ -45,4 +45,33 @@ test("sample video and images point under /media/ and the files exist", () => {
     expect(existsSync(`build/client${ref}`)).toBe(true);
   }
   expect(existsSync("build/client/media/mer-f7.jpg")).toBe(true);
+});
+
+test("nav and footer links go to the real routes", () => {
+  const href = (sel, text) =>
+    $$(sel)
+      .find((a) => a.textContent === text)
+      ?.getAttribute("href");
+  for (const sel of ['nav[aria-label="Main"] a', 'nav[aria-label="Footer"] a']) {
+    expect(href(sel, "Chores")).toBe("/chores");
+    expect(href(sel, "How it checks")).toBe("#checked");
+    expect(href(sel, "Privacy")).toBe("/privacy");
+  }
+  expect(href('nav[aria-label="Footer"] a', "Research")).toBe("#research");
+  expect(href('nav[aria-label="Footer"] a', "System requirements")).toBe("/requirements");
+});
+
+test("every call to action points at /app (so it works without JavaScript too)", () => {
+  for (const a of $$("[data-choose]")) expect(a.getAttribute("href")).toBe("/app");
+});
+
+test("no built file contains (Mockup", () => {
+  const walk = (d) =>
+    readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(`${d}/${e.name}`) : [`${d}/${e.name}`],
+    );
+  const hits = walk("build/client")
+    .filter((f) => /\.(js|html|css)$/.test(f))
+    .filter((f) => readFileSync(f, "utf8").includes("(Mockup"));
+  expect(hits).toEqual([]);
 });

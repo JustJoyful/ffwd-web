@@ -9,7 +9,7 @@ const UNFINISHED = [
   "[role line]",
   "[Confirm on the built site",
   "[Confirm IP capture",
-  "(Mockup",
+  "https://ffwd.example", // the SITE_URL placeholder (app/config.js): the domain is not chosen yet
 ];
 
 function* files(dir) {

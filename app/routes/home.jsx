@@ -42,18 +42,18 @@ export default function Home() {
   return (
     <>
       <header className="nav">
-        <a className="brand" href="#" aria-label="ffwd, home">
+        <a className="brand" href="/" aria-label="ffwd, home">
           <Logo />
           <span>ffwd</span>
         </a>
         <nav aria-label="Main">
-          <a href="#">Chores</a>
-          <a href="#">How it checks</a>
-          <a href="#">Privacy</a>
+          <a href="/chores">Chores</a>
+          <a href="#checked">How it checks</a>
+          <a href="/privacy">Privacy</a>
           <a href="#">GitHub</a>
         </nav>
         <div className="nav__end">
-          <a className="btn btn--sm btn--ghost" href="#" data-choose="">
+          <a className="btn btn--sm btn--ghost" href="/app" data-choose="">
             Open ffwd
           </a>
         </div>
@@ -71,7 +71,7 @@ export default function Home() {
               is uploaded.
             </p>
             <div className="ctas">
-              <a className="btn btn--accent" href="#" data-choose="">
+              <a className="btn btn--accent" href="/app" data-choose="">
                 Choose a video
               </a>
               <button className="btn btn--ghost" type="button" data-sample="">
@@ -562,7 +562,7 @@ export default function Home() {
               Describe it.<span>Get it checked.</span>
             </h2>
             <div className="ctas">
-              <a className="btn btn--accent" href="#" data-choose="">
+              <a className="btn btn--accent" href="/app" data-choose="">
                 Choose a video
               </a>
               <button className="btn btn--ghost" type="button" data-sample="">
@@ -579,9 +579,10 @@ export default function Home() {
       <footer className="foot">
         <div className="foot__links">
           <nav aria-label="Footer">
-            <a href="#">Chores</a>
+            <a href="/chores">Chores</a>
             <a href="#checked">How it checks</a>
-            <a href="#privacy">Privacy</a>
+            <a href="/privacy">Privacy</a>
+            <a href="/requirements">System requirements</a>
             <a href="#research">Research</a>
             <a href="#">GitHub</a>
           </nav>
