@@ -31,3 +31,6 @@ playwright-report/
 
 # Screenshots from look reviews
 screenshots/
+
+# Lighthouse CI working folder
+.lighthouseci/

@@ -1,0 +1,26 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "pnpm exec vite preview --port 4173 --strictPort",
+      "startServerReadyPattern": "Local",
+      "url": [
+        "http://localhost:4173/",
+        "http://localhost:4173/chores/cut-the-start-off-a-video"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "preset": "desktop",
+        "chromeFlags": "--disable-gpu --no-sandbox"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "largest-contentful-paint": ["error", { "maxNumericValue": 1500 }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": "node_modules/.cache/lighthouseci"
+    }
+  }
+}

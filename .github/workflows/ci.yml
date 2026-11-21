@@ -25,3 +25,23 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm test:build
+  # Budgets (DESIGN "Performance budget"): bundle sizes and Largest Contentful Paint, on the production build.
+  budgets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Bundle size (home and chore page JavaScript, fonts)
+        run: pnpm size
+      # Lighthouse runs in Playwright's Chromium without a GPU, the same flags as the end-to-end tests.
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Lighthouse (largest contentful paint on / and a chore page)
+        run: |
+          export CHROME_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+          pnpm lighthouse
