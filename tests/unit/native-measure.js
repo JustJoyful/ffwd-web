@@ -3,7 +3,7 @@
 // shell string. Like the Python tests, it needs ffmpeg and ffprobe: it fails loudly when they are missing
 // instead of skipping, because a skipped conformance case would look like a pass.
 //   FFWD_FFMPEG_BIN / FFWD_FFPROBE_BIN pick the binaries (the Python repo pins 5.1.1, D-024); default is PATH.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +12,7 @@ const FFMPEG = process.env.FFWD_FFMPEG_BIN ?? "ffmpeg";
 const FFPROBE = process.env.FFWD_FFPROBE_BIN ?? "ffprobe";
 const OFFSET_PACKET_WINDOW = 16; // training/config.py
 const PROBE_MAX_FPS = 1000; // training/config.py
+const QUALITY_SAMPLE_FPS = 2; // training/config.py
 
 const run = (bin, args) =>
   execFileSync(bin, args, {
@@ -33,6 +34,23 @@ export function binaries() {
     );
   }
 }
+
+/** The major version of the ffmpeg on PATH (5 for the pinned 5.1.1, D-024); null when it cannot be read. */
+export function ffmpegMajor() {
+  try {
+    const m = /version n?(\d+)\./.exec(run(FFMPEG, ["-version"]));
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** stderr of an ffmpeg run (filters such as ssim and psnr report there); a failing run still returns its text. */
+const stderrOf = (args) =>
+  spawnSync(FFMPEG, ["-hide_banner", "-nostdin", ...args], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  }).stderr;
 
 /** Make a scratch directory; call the returned cleanup when done. */
 export function scratch() {
@@ -149,15 +167,72 @@ export function nativeMeasure() {
         .map(Number);
       return pts.length ? Math.min(...pts) : null;
     },
-    // Not needed by the offset cases; Plan C implements these over ffmpeg.wasm and runs the media cases.
-    async loudness() {
-      throw new Error("not implemented in the native test helper");
+    // The next three are the same recipes as training/env/{quality,orientation}.py and checker._integrated_loudness
+    // (and browser-measure.js), run on native ffmpeg.
+    async loudness(path) {
+      const log = stderrOf([
+        "-i",
+        path,
+        "-map",
+        "0:a:0",
+        "-af",
+        "ebur128=framelog=-8",
+        "-f",
+        "null",
+        "-",
+      ]);
+      const last = [...log.matchAll(/^\s+I:\s+(-?[\d.]+|-inf) LUFS/gm)].at(
+        -1,
+      )?.[1];
+      return last === undefined || last === "-inf" ? null : Number(last);
     },
-    async quality() {
-      throw new Error("not implemented in the native test helper");
+    async quality(ref, cand, width, height) {
+      const prep = `fps=${QUALITY_SAMPLE_FPS},scale=${width}:${height}:flags=bicubic,format=yuv420p`;
+      const graph = `[0:v]${prep},split[a1][a2];[1:v]${prep},split[b1][b2];[a1][b1]ssim;[a2][b2]psnr`;
+      const log = stderrOf([
+        "-i",
+        cand,
+        "-i",
+        ref,
+        "-filter_complex",
+        graph,
+        "-f",
+        "null",
+        "-",
+      ]);
+      const ssim = [...log.matchAll(/SSIM .*? All:([\d.]+)/g)];
+      const psnr = [...log.matchAll(/PSNR .*? average:([\d.inf]+)/g)];
+      if (!ssim.length || !psnr.length) return null;
+      const p = psnr.at(-1)[1];
+      return {
+        ssim: Number(ssim.at(-1)[1]),
+        psnr_db: p === "inf" ? 100 : Number(p),
+      };
     },
-    async thumbnail() {
-      throw new Error("not implemented in the native test helper");
+    async thumbnail(path, size) {
+      const raw = spawnSync(
+        FFMPEG,
+        [
+          "-hide_banner",
+          "-nostdin",
+          "-v",
+          "error",
+          "-i",
+          path,
+          "-frames:v",
+          "1",
+          "-vf",
+          `scale=${size}:${size}:flags=area,format=gray`,
+          "-f",
+          "rawvideo",
+          "-",
+        ],
+        { maxBuffer: 64 * 1024 * 1024 },
+      ).stdout;
+      if (raw.length !== size * size) return null;
+      return Array.from({ length: size }, (_, y) =>
+        Array.from(raw.subarray(y * size, (y + 1) * size)),
+      );
     },
   };
 }
