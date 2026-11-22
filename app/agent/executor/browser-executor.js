@@ -77,7 +77,15 @@ export class BrowserExecutor {
       ...harnessArgs(args, this.inputPaths, targets),
     ];
     const r = await this.session.exec(argv, { timeoutMs: this.timeoutMs });
-    const tail = r.log.slice(-STDERR_TAIL_CHARS);
+    // FFmpeg echoes the files it opened; the model gets ids back, never the in-memory paths (they carry the file name).
+    const names = [
+      ...Object.entries(this.inputPaths).map(([id, p]) => [p, `{in:${id}}`]),
+      ...Object.entries(handles).map(([id, p]) => [p, `{out:${id}}`]),
+    ].sort((a, b) => b[0].length - a[0].length);
+    const tail = names.reduce(
+      (t, [path, token]) => t.replaceAll(path, token),
+      r.log.slice(-STDERR_TAIL_CHARS),
+    );
     if (r.code !== 0) {
       await this.#discard(handles, isDir);
       const why = r.timedOut
