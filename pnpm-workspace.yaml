@@ -1,2 +1,4 @@
 allowBuilds:
   core-js: false
+minimumReleaseAgeExclude:
+  - "@wllama/wllama@4.0.0"

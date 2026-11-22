@@ -12,6 +12,14 @@ export default defineConfig({
         },
       },
       {
+        // Opt-in: needs a GGUF (FFWD_GGUF) and real Chromium; see tests/browser-gguf/tokenizer.test.js.
+        test: {
+          name: "browser-gguf",
+          include: ["tests/browser-gguf/**/*.test.js"],
+          environment: "node",
+        },
+      },
+      {
         test: {
           name: "build",
           include: ["tests/build/**/*.test.js"],
