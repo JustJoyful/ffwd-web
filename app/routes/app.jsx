@@ -211,14 +211,16 @@ export default function App() {
     "awaitingRequest",
     "awaitingConfirm",
   ].includes(name);
-  const dot = unsupportedDevice
-    ? "stopped"
-    : name === "checkingCapability" ||
-        ["downloading", "loading"].includes(model.phase)
-      ? "starting"
-      : WORKING.includes(name)
-        ? "busy"
-        : "ready";
+  // the dot never says "Ready" while the model cannot answer
+  const dot =
+    unsupportedDevice || model.phase === "failed"
+      ? "stopped"
+      : name === "checkingCapability" ||
+          ["needsConsent", "downloading", "loading"].includes(model.phase)
+        ? "starting"
+        : WORKING.includes(name)
+          ? "busy"
+          : "ready";
   const again = () => {
     dispatch({ type: "newRequest" });
   };

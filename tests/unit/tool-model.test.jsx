@@ -185,3 +185,22 @@ describe("a job that ends because of the model is never shown as a success", () 
     expect(screen.getByText(/The model couldn't answer/)).toBeTruthy();
   });
 });
+
+describe("the status dot never says Ready while the model cannot answer", () => {
+  test.each([
+    ["ready", "Ready, on this computer"],
+    ["idle", "Ready, on this computer"],
+    ["needsConsent", "Starting"],
+    ["downloading", "Starting"],
+    ["loading", "Starting"],
+    ["failed", "Stopped"],
+  ])("model %s: %s", (phase, words) => {
+    vi.stubEnv("VITE_MODEL_URL", "http://localhost/m.gguf");
+    setTool(
+      {},
+      { phase, total: 5, error: { code: "load_failed", message: "" } },
+    );
+    renderApp();
+    expect(document.querySelector(".win__state").textContent).toBe(words);
+  });
+});
