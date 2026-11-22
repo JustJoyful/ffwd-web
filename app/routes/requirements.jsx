@@ -5,6 +5,7 @@ import {
   MAX_FILE_BYTES_PER_GB,
   MIN_DEVICE_MEMORY_GB,
   REASON_TEXT,
+  estimateWait,
   maxFileBytes,
 } from "../lib/capability.js";
 
@@ -47,17 +48,29 @@ const SECTIONS = {
     ),
   },
   "no-webgpu": {
-    heading: "The browser has no WebGPU",
+    heading: "No graphics acceleration: ffwd uses your processor",
     body: (
       <>
         <p>
-          ffwd runs its model on your graphics chip through WebGPU. Current
-          desktop Chrome and Edge have it on most laptops.
+          ffwd runs its model on your graphics chip through WebGPU when the
+          browser offers a real one. Without it ffwd still works: it runs the
+          model on your processor, more slowly, and the page tells you which one
+          it is using.
         </p>
         <p>
-          If you already use one of them, update it, and check that hardware
-          acceleration is turned on in its settings. Firefox and Safari are not
-          tested yet.
+          On the laptop we measured, the first step took about{" "}
+          <Num
+            name="CPU_FIRST_STEP_SECONDS"
+            value={estimateWait("cpu").firstStepSeconds}
+          />{" "}
+          seconds and each step after it about{" "}
+          <Num
+            name="CPU_LATER_STEP_SECONDS"
+            value={estimateWait("cpu").laterStepSeconds}
+          />{" "}
+          seconds. A slower computer takes longer. In Chrome or Edge, update the
+          browser and check that hardware acceleration is switched on in its
+          settings. Firefox and Safari are not tested yet.
         </p>
       </>
     ),
@@ -130,7 +143,10 @@ export default function Requirements() {
                   A current Chrome or Edge. Firefox and Safari may work but are
                   not tested yet.
                 </li>
-                <li>WebGPU, which Chrome and Edge have on most laptops.</li>
+                <li>
+                  A graphics chip the browser can use (WebGPU) for speed.
+                  Without one ffwd still runs, more slowly.
+                </li>
                 <li>
                   Enough memory:{" "}
                   <Num

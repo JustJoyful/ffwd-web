@@ -6,7 +6,14 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { createMachine } from "../agent/machine.js";
 import { scriptedPolicy } from "../agent/scripted-policy.js";
 import { createBrowserRuntime } from "../agent/browser-runtime.js";
-import { checkCapability } from "../lib/capability.js";
+import { checkCapability, readAdapter, readEnv } from "../lib/capability.js";
+
+// The real check: what the page sees, plus the actual WebGPU adapter (a missing or software one means the processor path).
+const realCapability = async () => {
+  const env = readEnv();
+  const adapter = env.gpu && !env.scripted ? await readAdapter() : undefined;
+  return checkCapability({ ...env, adapter });
+};
 
 /** The model arrives with Plan E; until then a real build ends the job with a clear reason instead of hanging. */
 const unavailablePolicy = async () => {
@@ -24,12 +31,12 @@ export function defaultPolicy() {
 }
 
 /**
- * @param {{ policy?: import("../agent/scripted-policy.js").Policy, runtime?: ReturnType<typeof createBrowserRuntime>, capability?: () => { ok: boolean, reason: string | null } }} [opts] injected by tests
+ * @param {{ policy?: import("../agent/scripted-policy.js").Policy, runtime?: ReturnType<typeof createBrowserRuntime>, capability?: () => ReturnType<typeof checkCapability> | Promise<ReturnType<typeof checkCapability>> }} [opts] injected by tests
  */
 export function createToolStore({
   policy = defaultPolicy(),
   runtime = createBrowserRuntime(),
-  capability = checkCapability,
+  capability = realCapability,
 } = {}) {
   const machine = createMachine({
     policy,
@@ -43,8 +50,12 @@ export function createToolStore({
     subscribe: machine.subscribe,
     dispatch: machine.dispatch,
     /** The first event of every visit. Ignored by the machine once it has left checkingCapability. */
-    start: () =>
-      machine.dispatch({ type: "capabilityChecked", ...capability() }),
+    start: () => {
+      const go = (c) => machine.dispatch({ type: "capabilityChecked", ...c });
+      const result = capability();
+      // A synchronous provider (the tests, a plain env read) dispatches at once, as before.
+      return result instanceof Promise ? result.then(go) : go(result);
+    },
     /** Kill the ffmpeg worker; the runtime loads a fresh core if it is used again. */
     stop: () => runtime.dispose(),
   };

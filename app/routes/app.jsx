@@ -7,6 +7,7 @@ import { ASK_MAX_CHARS } from "../config.js";
 import { INPUT_ID } from "../agent/browser-runtime.js";
 import AskUser from "../components/tool/AskUser.jsx";
 import CapabilityNotice from "../components/tool/CapabilityNotice.jsx";
+import ModelPathNotice from "../components/tool/ModelPathNotice.jsx";
 import CommandReveal from "../components/tool/CommandReveal.jsx";
 import DownloadButton from "../components/tool/DownloadButton.jsx";
 import DropOverlay from "../components/tool/DropOverlay.jsx";
@@ -236,6 +237,7 @@ export default function App() {
           </div>
         ) : (
           <div className="win__body">
+            <ModelPathNotice path={state.path} notice={state.notice} />
             <div className="steps">
               <Step n={1} title="Video" mod={stepVideo}>
                 {file && (
