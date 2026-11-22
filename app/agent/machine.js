@@ -12,6 +12,7 @@
 import { describeSpec } from "./describe-spec.js";
 import { MAX_ASK_USER, MAX_RUNS, MAX_TURNS } from "./config.js";
 import { createJob, executeRun, nextAction, observe } from "./loop.js";
+import { MACHINE_REASON, MODEL_ERROR_TEXT } from "../model/contract.js";
 
 /**
  * @typedef {import("./loop.js").Executor} Executor
@@ -33,8 +34,10 @@ import { createJob, executeRun, nextAction, observe } from "./loop.js";
  * @property {string | null} question the model's question, in askingUser
  * @property {"webgpu" | "cpu" | null} path where the model runs (set by the capability check; kept across resets)
  * @property {string | null} notice why the model is on the processor, when it is (not a refusal)
- * @property {string | null} reason why it ended: run_budget, turn_budget, policy_error, or the model's/device's words
- * @property {string | null} error a message for the person (a file that could not be read, a crashed policy)
+ * @property {string | null} reason why it ended: run_budget, turn_budget, too_long, model_unavailable, aborted (a typed
+ *   model error, see MACHINE_REASON), policy_error (an untyped one), or the model's/device's words
+ * @property {string | null} error a message for the person (a file that could not be read, MODEL_ERROR_TEXT for a typed
+ *   model error, the raw text of an untyped policy error)
  *
  * @typedef {{ type: "capabilityChecked", ok: boolean, reason?: string, path?: "webgpu" | "cpu", notice?: string | null }
  *   | { type: "fileChosen", file: unknown }
@@ -120,6 +123,12 @@ export function createMachine(deps) {
       try {
         step = await nextAction(job, deps.policy);
       } catch (e) {
+        // A typed model error (the client's `.code`) ends the job with the contract's reason and sentence. Never a
+        // success, never retried here; history and counters stay in the snapshot. Anything else keeps policy_error.
+        const code = e instanceof Error ? e.code : undefined;
+        if (Object.hasOwn(MACHINE_REASON, code ?? "")) {
+          return fail(MACHINE_REASON[code], MODEL_ERROR_TEXT[code]);
+        }
         return fail("policy_error", message(e));
       }
       const { reply } = step;

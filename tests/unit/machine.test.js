@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 import { createMachine } from "../../app/agent/machine.js";
 import {
+  ERROR_CODES,
+  MACHINE_REASON,
+  MODEL_ERROR_TEXT,
+} from "../../app/model/contract.js";
+import {
   SPEC_2MB,
   act,
   fakeExecutor,
@@ -257,6 +262,144 @@ describe("budgets", () => {
       reason: "policy_error",
     });
     expect(m.getState().error).toContain("GPU lost");
+  });
+});
+
+/** Replies from `steps`, then throws `err` (what the model client does when the worker reports an error). */
+function throwingAfter(steps, err) {
+  const inner = policyOf(steps);
+  const policy = async (messages) => {
+    policy.seen += 1;
+    if (policy.seen > steps.length) throw err;
+    return inner(messages);
+  };
+  policy.seen = 0;
+  return policy;
+}
+const modelError = (code) =>
+  Object.assign(new Error(`worker: ${code}`), { code });
+
+describe("a model error ends the job (the contract's MACHINE_REASON and MODEL_ERROR_TEXT)", () => {
+  /** A machine whose policy answers `steps` and then throws `err`. */
+  async function withThrow(steps, err, over = {}) {
+    const policy = throwingAfter(steps, err);
+    const m = createMachine({
+      policy,
+      executor: over.executor ?? fakeExecutor(),
+      measure: over.measure ?? fakeMeasure(),
+      probeFile,
+    });
+    await m.dispatch({ type: "capabilityChecked", ok: true });
+    await m.dispatch({ type: "fileChosen", file: { name: "a.mp4" } });
+    return { m, policy, s: () => m.getState() };
+  }
+
+  test.each(ERROR_CODES)(
+    "%s on the first turn: failed with its reason and sentence",
+    async (code) => {
+      const e = await withThrow([], modelError(code));
+      await submit(e.m);
+      expect(e.s()).toMatchObject({
+        name: "failed",
+        reason: MACHINE_REASON[code],
+        error: MODEL_ERROR_TEXT[code],
+        runs: 0,
+        turns: 0,
+      });
+      expect(e.policy.seen).toBe(1); // never retried silently
+    },
+  );
+  test("context_full reads as too_long with the 'too long ... not done' sentence", async () => {
+    const e = await withThrow([], modelError("context_full"));
+    await submit(e.m);
+    expect(e.s().reason).toBe("too_long");
+    expect(e.s().error).toMatch(/too long .* not done/);
+  });
+  test.each(ERROR_CODES)(
+    "%s after a failed run keeps the history and run counts, and is not success",
+    async (code) => {
+      const e = await withThrow([spec(), run()], modelError(code), {
+        measure: fakeMeasure({ sizes: [3_200_000] }),
+      });
+      await submit(e.m);
+      await confirm(e.m);
+      const s = e.s();
+      expect(s).toMatchObject({
+        name: "failed",
+        reason: MACHINE_REASON[code],
+        error: MODEL_ERROR_TEXT[code],
+        runs: 1,
+        turns: 2,
+        spec: SPEC_2MB,
+      });
+      expect(s.history).toHaveLength(1);
+      expect(s.history[0]).toMatchObject({ n: 1, passed: false });
+      expect(e.policy.seen).toBe(3);
+    },
+  );
+  test("an error after a run that PASSED cannot happen (the job is already done), but one on a later job still fails", async () => {
+    const e = await withThrow([spec(), run()], modelError("generate_failed"), {
+      measure: fakeMeasure({ sizes: [1_000_000] }),
+    });
+    await submit(e.m);
+    await confirm(e.m);
+    expect(e.s().name).toBe("done");
+    await e.m.dispatch({ type: "newRequest" });
+    await submit(e.m);
+    expect(e.s()).toMatchObject({
+      name: "failed",
+      reason: "model_unavailable",
+    });
+  });
+  test("an error whose code is not in the contract keeps policy_error", async () => {
+    const e = await withThrow([], modelError("something_new"));
+    await submit(e.m);
+    expect(e.s()).toMatchObject({ name: "failed", reason: "policy_error" });
+    expect(e.s().error).toContain("something_new");
+  });
+  test("a code that is an inherited property name (toString) is not a known code", async () => {
+    const e = await withThrow([], modelError("toString"));
+    await submit(e.m);
+    expect(e.s().reason).toBe("policy_error");
+  });
+  test("a non-Error rejection and an Error without a code keep policy_error", async () => {
+    for (const err of ["boom", new Error("plain"), { code: "context_full" }]) {
+      const e = await withThrow([], err);
+      await submit(e.m);
+      expect(e.s()).toMatchObject({ name: "failed", reason: "policy_error" });
+    }
+  });
+  test("a failed model job offers newRequest as before", async () => {
+    const e = await withThrow([], modelError("context_full"));
+    await submit(e.m);
+    await e.m.dispatch({ type: "newRequest" });
+    expect(e.s()).toMatchObject({
+      name: "awaitingRequest",
+      reason: null,
+      error: null,
+      runs: 0,
+      history: [],
+    });
+    expect(e.s().inputs).toHaveLength(1);
+  });
+  test("an error while answering or confirming also ends the job with the typed reason", async () => {
+    const ask = act({ action: "ask_user", question: "Which part?" });
+    const a = await withThrow([ask], modelError("out_of_memory"));
+    await submit(a.m);
+    await a.m.dispatch({ type: "answered", text: "the start" });
+    expect(a.s()).toMatchObject({
+      name: "failed",
+      reason: "model_unavailable",
+      error: MODEL_ERROR_TEXT.out_of_memory,
+    });
+    const c = await withThrow([spec()], modelError("aborted"));
+    await submit(c.m);
+    await confirm(c.m);
+    expect(c.s()).toMatchObject({
+      name: "failed",
+      reason: "aborted",
+      error: "The job was stopped.",
+    });
   });
 });
 
