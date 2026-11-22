@@ -10,17 +10,18 @@ export default function CommandReveal({ args, chips }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [lit, setLit] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(null); // null | "done" | "blocked"
   const hit = lit ? flagsForChip(lit, args) : new Set();
   const text = ["ffmpeg", ...args.map(quoteArg)].join(" ");
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopied("done");
     } catch {
-      // clipboard blocked: the command is on screen and can be selected by hand
+      // clipboard blocked: say so, the command is on screen and can be selected by hand
+      setCopied("blocked");
     }
+    setTimeout(() => setCopied(null), 2000);
   };
   return (
     <div
@@ -75,8 +76,14 @@ export default function CommandReveal({ args, chips }) {
             className="btn btn--sm btn--ghost"
             onClick={copy}
           >
-            {copied ? "Copied" : "Copy the command"}
+            {copied === "done" ? "Copied" : "Copy the command"}
           </button>
+          {copied === "blocked" && (
+            <p className="step__hint" role="status">
+              This browser blocked copying. Select the command above and copy it
+              by hand.
+            </p>
+          )}
         </div>
       )}
     </div>

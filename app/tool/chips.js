@@ -65,7 +65,9 @@ export function chipsFromSpec(spec, inputProbe) {
       const g = gcd(v.width, v.height);
       put("Crop", `centre, ${v.width / g}:${v.height / g}`);
     }
-  } else if ("height" in v) put("Picture", `${v.height} px high`);
+  } else if (o.kind === "audio")
+    put("Picture", "removed"); // an audio file has no picture: never "unchanged"
+  else if ("height" in v) put("Picture", `${v.height} px high`);
   else if ("width" in v) put("Picture", `${v.width} px wide`);
   else same.push(["Picture", "unchanged"]);
   if ("rotation" in v) put("Turn", TURN[v.rotation] ?? `${v.rotation}°`);
@@ -80,6 +82,7 @@ export function chipsFromSpec(spec, inputProbe) {
 
   const au = setFields(o.audio);
   if (au.present === false) put("Sound", "removed");
+  else if ("codec" in au) put("Sound", au.codec.toUpperCase());
   else if (au.present === true) put("Sound", "kept", false);
   if ("loudness_lufs" in au) put("Loudness", `about ${au.loudness_lufs} LUFS`);
   if ("offset_ms" in au)
@@ -97,7 +100,7 @@ const CHIP_FLAGS = {
   Keep: ["-ss", "-to", "-t"],
   Length: ["-ss", "-to", "-t"],
   Size: ["-crf", "-b:v", "-maxrate", "-bufsize", "-fs", "-q:v"],
-  Picture: FILTER,
+  Picture: [...FILTER, "-vn"],
   Crop: FILTER,
   Turn: FILTER,
   "Frame rate": ["-r", ...FILTER],

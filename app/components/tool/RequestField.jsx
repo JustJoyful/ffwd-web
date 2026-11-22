@@ -3,7 +3,8 @@ import { useId } from "react";
 /**
  * The one-sentence chore. Enter submits, Shift+Enter adds a line. The field wraps and grows, so a long request is
  * never cut off.
- * @param {{ value: string, onChange(v: string): void, onSubmit(v: string): void, locked: boolean, canSubmit?: boolean, inputRef?: import("react").Ref<HTMLTextAreaElement>, submitLabel?: string }} props
+ * `hint` is a sentence under the field saying why it cannot be sent yet; the field points to it for screen readers.
+ * @param {{ value: string, onChange(v: string): void, onSubmit(v: string): void, locked: boolean, canSubmit?: boolean, hint?: string | null, inputRef?: import("react").Ref<HTMLTextAreaElement>, submitLabel?: string }} props
  */
 export default function RequestField({
   value,
@@ -11,6 +12,7 @@ export default function RequestField({
   onSubmit,
   locked,
   canSubmit = true,
+  hint = null,
   inputRef,
   submitLabel = "Make a plan",
 }) {
@@ -31,6 +33,7 @@ export default function RequestField({
         value={value}
         readOnly={locked}
         aria-readonly={locked || undefined}
+        aria-describedby={hint ? `${id}-hint` : undefined}
         placeholder="For example: cut the first 3 seconds"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -40,6 +43,11 @@ export default function RequestField({
           }
         }}
       />
+      {hint && (
+        <p className="step__hint" id={`${id}-hint`}>
+          {hint}
+        </p>
+      )}
       {!locked && (
         <button
           type="button"

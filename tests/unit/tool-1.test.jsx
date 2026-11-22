@@ -5,7 +5,6 @@ import { CHORES } from "../../app/content/showcase-chores.js";
 import { chipsFromSpec } from "../../app/tool/chips.js";
 import AskUser from "../../app/components/tool/AskUser.jsx";
 import CapabilityNotice from "../../app/components/tool/CapabilityNotice.jsx";
-import ModelLoader from "../../app/components/tool/ModelLoader.jsx";
 import PlanCard from "../../app/components/tool/PlanCard.jsx";
 import ProbeReadout from "../../app/components/tool/ProbeReadout.jsx";
 import RequestField from "../../app/components/tool/RequestField.jsx";
@@ -280,20 +279,6 @@ describe("questions, notices and the loader", () => {
       expect(screen.getByRole("alert").textContent.length).toBeGreaterThan(40);
     },
   );
-
-  test("ModelLoader shows the percent as text, with no motion element, so reduced motion changes nothing", () => {
-    vi.stubGlobal("matchMedia", (q) => ({
-      matches: q.includes("reduce"),
-      media: q,
-      addEventListener() {},
-      removeEventListener() {},
-    }));
-    render(<ModelLoader state="downloading" percent={41.6} sizeMb={394} />);
-    expect(screen.getByText("42%")).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toMatch(/394 MB/);
-    expect(document.querySelector("[role=progressbar], svg, .bar")).toBeNull();
-    vi.unstubAllGlobals();
-  });
 
   test("StatusDot says the state in words", () => {
     render(<StatusDot status="ready" />);

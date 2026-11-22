@@ -249,6 +249,23 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+/* where the model speaks: full width above the steps and the picture, and gone when there is nothing to say */
+.tool .modelzone {
+  grid-column: 1 / -1;
+  order: -2;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 16px 18px 0;
+}
+.tool .modelzone:empty {
+  display: none;
+}
+.notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .notice__detail {
   font: 0.75rem/1.5 var(--mono);
   color: var(--text-2);
