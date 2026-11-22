@@ -1,14 +1,53 @@
+# Cloudflare Pages headers. tests/build/shell.test.js parses this file: keep every comment on its own non-indented
+# line, and keep the "/*" block equal to isolation-headers.js.
+#
+# Cross-origin isolation (COOP same-origin + COEP credentialless) is what gives the page SharedArrayBuffer for the
+# multithreaded ffmpeg.wasm and the multithreaded model runtime. It is sent on every page, not only /app*, because a
+# client-side navigation from another page into /app would keep the old document's (non-isolated) headers.
+# credentialless, not require-corp: a cross-origin no-cors load is sent without cookies instead of needing a CORP
+# header, so a cross-origin ranged fetch of the model works (verified, see below).
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentialless
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
 
+# Fingerprinted build output (content hash in the file name): cache for a year.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
 /media/*
   Cache-Control: public, max-age=86400
 
+# The ffmpeg.wasm core (core-mt 0.12.10) is served from OUR origin for now, copied into /ffmpeg by
+# scripts/copy-core.mjs. Its file names are not fingerprinted, so only one day: never "immutable" here.
+# KNOWN LIMIT: ffmpeg-core.wasm is about 31 MB and Cloudflare Pages caps a file at 25 MiB, so this cannot ship from
+# Pages as it is. The plan is the R2 asset host below; until it exists the core is a local/dev arrangement.
+/ffmpeg/*
+  Cache-Control: public, max-age=86400
+
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# ---------------------------------------------------------------------------------------------------------------
+# PLANNED, NOT BUILT: where the big files will come from. Nothing below is configured; there are no hosts or URLs
+# in this repo for it yet (the domain is open, D-046; the model repo is private until the DeepSeek terms review).
+# Source of the facts: reports/2026-11-23-browser-gguf/REPORT.md section 6 (ffwd repo).
+#
+# Model GGUF (about 444 MB): Hugging Face Hub, public model repo, as the PRIMARY host.
+#   VERIFIED on a public stand-in file (not on our own file, which is not public yet):
+#   - the preflight reflects the requesting origin and allows the Range header; the redirect to the CDN answers 206
+#     with Access-Control-Allow-Origin: * and Accept-Ranges: bytes;
+#   - in real Chromium under COEP credentialless, a cross-origin ranged fetch returned 206 (type "cors"), and wllama
+#     downloaded and loaded the file. A CORS fetch needs no Cross-Origin-Resource-Policy header under credentialless.
+#   NOT measured: Hugging Face rate limits and availability under real traffic.
+#   The worker checks the sha256 after download (app/model/config.js), so the host is not trusted.
+#
+# R2 asset host (ffmpeg core, and the model FALLBACK): UNTESTED. There was no Cloudflare tooling or credentials when
+#   this was written. What it must send, from the same report and the COEP rules, to be confirmed when it exists:
+#   - Access-Control-Allow-Origin for the site origin (set in the bucket CORS rules),
+#   - Access-Control-Allow-Headers: Range, and Accept-Ranges: bytes on the responses,
+#   - Cross-Origin-Resource-Policy: cross-origin, for any file the page loads with no-cors (a worker or wasm script
+#     tag, an image). A plain fetch() with CORS needs only the CORS headers above.
+#   Switching host is meant to be one config value, not a code change.
+# ---------------------------------------------------------------------------------------------------------------
