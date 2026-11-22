@@ -1,11 +1,13 @@
 import { useEffect, useRef } from "react";
 import "../styles/theme.css";
 import { mountSections } from "../showcase/sections.js";
-import { mountShowcase } from "../showcase/showcase.js";
 
 // Static markup ported 1:1 from mockup-v5/index.html. No state and no props, so React never re-renders it:
 // the showcase and sections modules own the demo DOM after mount. The effect mounts both on <main> and its
 // cleanup undoes them, which keeps StrictMode (mount, unmount, mount) and client-side navigation clean.
+// The showcase (the demo, its chore data and formatters, about 5 kB gzip) is imported when the effect runs, not up
+// front: the page is readable without it and the 120 kB budget counts only what every visit loads first. The
+// sections module is small and hides/reveals content, so it stays in the page's own chunk.
 
 const Logo = () => (
   <svg viewBox="0 0 28 20" aria-hidden="true">
@@ -31,11 +33,19 @@ const Fail = () => (
 export default function Home() {
   const ref = useRef(null);
   useEffect(() => {
-    const a = mountShowcase(ref.current);
-    const b = mountSections(ref.current);
+    const root = ref.current;
+    let stopShowcase = null;
+    let left = false; // the effect was cleaned up before the showcase chunk arrived (StrictMode, fast navigation)
+    import("../showcase/showcase.js")
+      .then(({ mountShowcase }) => {
+        if (!left) stopShowcase = mountShowcase(root);
+      })
+      .catch(() => {}); // a failed chunk load leaves the page readable without the demo
+    const stopSections = mountSections(root);
     return () => {
-      a();
-      b();
+      left = true;
+      stopShowcase?.();
+      stopSections();
     };
   }, []);
 
