@@ -249,6 +249,11 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .notice__detail {
   font: 0.75rem/1.5 var(--mono);
   color: var(--text-2);
