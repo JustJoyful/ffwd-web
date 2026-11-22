@@ -31,10 +31,12 @@ import { createJob, executeRun, nextAction, observe } from "./loop.js";
  * @property {number} turns
  * @property {number} invalidTurns
  * @property {string | null} question the model's question, in askingUser
+ * @property {"webgpu" | "cpu" | null} path where the model runs (set by the capability check; kept across resets)
+ * @property {string | null} notice why the model is on the processor, when it is (not a refusal)
  * @property {string | null} reason why it ended: run_budget, turn_budget, policy_error, or the model's/device's words
  * @property {string | null} error a message for the person (a file that could not be read, a crashed policy)
  *
- * @typedef {{ type: "capabilityChecked", ok: boolean, reason?: string }
+ * @typedef {{ type: "capabilityChecked", ok: boolean, reason?: string, path?: "webgpu" | "cpu", notice?: string | null }
  *   | { type: "fileChosen", file: unknown }
  *   | { type: "requestSubmitted", request: string }
  *   | { type: "answered", text: string }
@@ -57,6 +59,8 @@ const initial = () => ({
   question: null,
   reason: null,
   error: null,
+  path: null,
+  notice: null,
 });
 
 const FILE_STATES = [
@@ -216,7 +220,13 @@ export function createMachine(deps) {
   const reset = () => {
     job = null;
     pendingReply = null;
-    set({ ...initial(), name: "awaitingRequest", inputs: state.inputs });
+    set({
+      ...initial(),
+      name: "awaitingRequest",
+      inputs: state.inputs,
+      path: state.path, // where the model runs does not change with the request
+      notice: state.notice,
+    });
   };
 
   /** @param {Event} e */
@@ -227,7 +237,11 @@ export function createMachine(deps) {
         if (name === "checkingCapability")
           set(
             e.ok
-              ? { name: "ready" }
+              ? {
+                  name: "ready",
+                  path: e.path ?? null,
+                  notice: e.notice ?? null,
+                }
               : {
                   name: "unsupportedDevice",
                   reason: e.reason ?? "this device is not supported",
@@ -240,7 +254,13 @@ export function createMachine(deps) {
         try {
           const input = await deps.probeFile(e.file);
           job = null;
-          set({ ...initial(), name: "awaitingRequest", inputs: [input] });
+          set({
+            ...initial(),
+            name: "awaitingRequest",
+            inputs: [input],
+            path: state.path,
+            notice: state.notice,
+          });
         } catch (err) {
           set({ name: "ready", error: message(err) });
         }

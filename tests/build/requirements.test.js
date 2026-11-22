@@ -3,6 +3,7 @@ import {
   MAX_FILE_BYTES_PER_GB,
   MIN_DEVICE_MEMORY_GB,
   REASON_TEXT,
+  estimateWait,
   maxFileBytes,
 } from "../../app/lib/capability.js";
 import { page } from "./helpers.js";
@@ -36,6 +37,8 @@ test("each number on the page equals the constant it comes from", () => {
     MIN_DEVICE_MEMORY_GB,
     MAX_FILE_MB_PER_GB: MAX_FILE_BYTES_PER_GB / MIB,
     MAX_FILE_MB_AT_4_GB: maxFileBytes(4) / MIB,
+    CPU_FIRST_STEP_SECONDS: estimateWait("cpu").firstStepSeconds,
+    CPU_LATER_STEP_SECONDS: estimateWait("cpu").laterStepSeconds,
   };
   const marked = $$("[data-const]");
   expect(marked.length).toBeGreaterThanOrEqual(3);
