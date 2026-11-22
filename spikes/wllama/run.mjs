@@ -41,12 +41,71 @@ export function parseArgs(argv) {
   return { cmd, ...o };
 }
 
-async function launch(o, profile) {
+// Chromium moves itself into its OWN systemd scope (app-org.chromium.Chromium-<pid>.scope) through the user D-Bus, which
+// silently escapes any MemoryMax set on the scope that launched it (found 23 Nov 2026: cgroup peak 290 MiB against 2.6 GB
+// resident). Without a route to the user bus it stays in the launcher's scope, where the cap applies.
+const NO_USER_BUS = ["DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"];
+const cappedEnv = () =>
+  Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !NO_USER_BUS.includes(k)),
+  );
+
+const myCgroup = () =>
+  readFileSync("/proc/self/cgroup", "utf8").trim().split("::")[1];
+const descendants = (root = process.pid) => {
+  const rows = execFileSync("ps", ["-eo", "pid=,ppid="], { encoding: "utf8" })
+    .trim()
+    .split("\n")
+    .map((l) => l.trim().split(/\s+/).map(Number));
+  const tree = new Set([root]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const [pid, ppid] of rows)
+      if (tree.has(ppid) && !tree.has(pid)) (tree.add(pid), (grew = true));
+  }
+  tree.delete(root);
+  return [...tree];
+};
+
+/** Before launching: this process must have a memory.max (a browser run without one is refused). */
+export function assertCapped({ allowUncapped = false, minCapBytes = 1 } = {}) {
+  const cg = myCgroup();
+  const max = readFileSync(`/sys/fs/cgroup${cg}/memory.max`, "utf8").trim();
+  if (!allowUncapped && (max === "max" || Number(max) < minCapBytes)) {
+    throw new Error(
+      `no memory cap on ${cg} (memory.max=${max}): run under systemd-run --user --scope -p MemoryMax=...`,
+    );
+  }
+  return { cgroup: cg, memory_max: max };
+}
+
+/** After launching: the cap is still the one in force, and every browser process is in the same cgroup. */
+export function assertContained(opts = {}) {
+  const { cgroup: cg, memory_max: max } = assertCapped(opts);
+  const strays = descendants().filter((pid) => {
+    try {
+      return (
+        readFileSync(`/proc/${pid}/cgroup`, "utf8").trim().split("::")[1] !== cg
+      );
+    } catch {
+      return false; // exited meanwhile
+    }
+  });
+  if (strays.length)
+    throw new Error(
+      `browser processes escaped the capped cgroup ${cg}: ${strays.join(",")}`,
+    );
+  return { cgroup: cg, memory_max: max };
+}
+
+export async function launch(o, profile) {
+  assertCapped({ allowUncapped: o.allowUncapped === "true" }); // before any browser exists
   const args = o.mode === "gpu" ? GPU_FLAGS : [];
   const ctx = await chromium.launchPersistentContext(profile, {
     channel: "chromium",
     headless: true,
     args,
+    env: cappedEnv(),
   });
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   const consoleLog = [];
@@ -58,11 +117,19 @@ async function launch(o, profile) {
   );
   await page.goto(`http://127.0.0.1:${o.port}/`);
   await page.waitForFunction(() => typeof window.spike?.env === "function");
-  return { ctx, page, args, consoleLog, version: ctx.browser()?.version() };
+  const cap = assertContained({ allowUncapped: o.allowUncapped === "true" });
+  return {
+    ctx,
+    page,
+    args,
+    consoleLog,
+    version: ctx.browser()?.version(),
+    cap,
+  };
 }
 
 /** The accelerated path must be real. Throws with every reason; a run that fails here is discarded, never reported. */
-export function assertPaths(mode, env, loaded, logs) {
+export function assertPaths(mode, env, loaded, logs, expectVendor) {
   const bad = [];
   if (!env.crossOriginIsolated) bad.push("page is not cross-origin isolated");
   if (!env.sharedArrayBuffer) bad.push("no SharedArrayBuffer");
@@ -77,6 +144,23 @@ export function assertPaths(mode, env, loaded, logs) {
       const who = `${g.architecture} ${g.description} ${g.vendor} ${g.device}`;
       if (/swiftshader|llvmpipe|software|lavapipe/i.test(who)) {
         bad.push(`software adapter: ${who}`);
+      }
+    }
+    if (expectVendor) {
+      const want = expectVendor.toLowerCase();
+      if (!String(g.vendor).toLowerCase().includes(want)) {
+        bad.push(`page adapter vendor is ${g.vendor}, expected ${want}`);
+      }
+      if (
+        !logs.some(
+          (l) =>
+            /adapter_info/i.test(l) &&
+            new RegExp(`vendor: ${want}`, "i").test(l),
+        )
+      ) {
+        bad.push(
+          `the runtime's own adapter_info log line does not say vendor: ${want}`,
+        );
       }
     }
     if (!logs.some((l) => /webgpu/i.test(l))) {
@@ -113,13 +197,16 @@ async function boot(o, { clearCache, profile }) {
     },
   });
   const b = await launch(o, profile);
-  const env = await b.page.evaluate(() => window.spike.env());
+  const env = await b.page.evaluate(
+    (pp) => window.spike.env(pp),
+    o.powerPreference,
+  );
   const loaded = await b.page.evaluate((a) => window.spike.load(a), {
     ...loadArgs(o),
     clearCache,
   });
   const logs = await b.page.evaluate(() => window.spike.logs());
-  assertPaths(o.mode, env, loaded, logs);
+  assertPaths(o.mode, env, loaded, logs, o.expectVendor);
   const hardware = {
     cpu: readFileSync("/proc/cpuinfo", "utf8").match(
       /model name\s*:\s*(.*)/,
@@ -146,9 +233,16 @@ async function shutdown(s) {
 
 const writeJson = (dir, name, v) =>
   writeFileSync(`${dir}/${name}`, JSON.stringify(v, null, 2) + "\n");
+const HERE = dirname(fileURLToPath(import.meta.url));
 const pkg = (p) =>
   JSON.parse(
-    readFileSync(resolve(SITE, `node_modules/${p}/package.json`), "utf8"),
+    readFileSync(
+      resolve(
+        p.startsWith("@wllama") ? HERE : SITE, // wllama is installed in the spike package, not in the app (D-051)
+        `node_modules/${p}/package.json`,
+      ),
+      "utf8",
+    ),
   ).version;
 const record = (o, s) => ({
   mode: o.mode,
@@ -166,6 +260,7 @@ const record = (o, s) => ({
   env: s.env,
   load: s.loaded,
   hardware: s.hardware,
+  memory_cap: s.cap,
   runtime_log_gpu_lines: s.runtimeLog,
 });
 
@@ -214,7 +309,14 @@ export function memSample() {
   const rss = rows
     .filter(([pid]) => tree.has(pid))
     .reduce((a, r) => a + r[2], 0);
-  return { gpu_mib: gpu, rss_mib: Math.round(rss / 1024) };
+  const avail = Number(
+    readFileSync("/proc/meminfo", "utf8").match(/MemAvailable:\s*(\d+)/)[1],
+  );
+  return {
+    gpu_mib: gpu,
+    rss_mib: Math.round(rss / 1024),
+    avail_mib: Math.round(avail / 1024),
+  };
 }
 
 /** cgroup memory of this process's scope: peak, current, and how often the MemoryHigh throttle fired. */
@@ -343,10 +445,14 @@ async function bridge(o) {
   const s = await boot(o, { clearCache: true, profile });
   writeJson(o.out, "env.json", record(o, s));
   const peak = { ...memSample(), samples: 0 };
+  peak.avail_start_mib = peak.avail_mib;
+  peak.avail_min_mib = peak.avail_mib;
+  delete peak.avail_mib;
   const sampler = setInterval(() => {
     const m = memSample();
     peak.gpu_mib = Math.max(peak.gpu_mib, m.gpu_mib);
     peak.rss_mib = Math.max(peak.rss_mib, m.rss_mib);
+    peak.avail_min_mib = Math.min(peak.avail_min_mib, m.avail_mib); // system-wide: an iGPU shares this RAM
     peak.samples++;
   }, 3000);
   let chain = Promise.resolve();

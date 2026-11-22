@@ -19,19 +19,18 @@ const logger = {
   error: keep("e"),
 };
 let w = null;
+let loadedCtx = 0; // n_ctx of the loaded model, for the context rule in complete()
 let ff = null;
 let clip = null;
 const MAX_TOKENS = 512;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sum = (a, f) => a.reduce((s, x) => s + f(x), 0);
 
-async function gpuInfo() {
-  if (!navigator.gpu) return { present: false };
-  const a = await navigator.gpu.requestAdapter();
-  if (!a) return { present: true, adapter: null };
+async function adapterInfo(options) {
+  const a = await navigator.gpu.requestAdapter(options);
+  if (!a) return { adapter: null };
   const info = a.info ?? {};
   return {
-    present: true,
     vendor: info.vendor,
     architecture: info.architecture,
     device: info.device,
@@ -40,6 +39,28 @@ async function gpuInfo() {
     features: [...a.features],
     maxBufferSize: a.limits.maxBufferSize,
     maxStorageBufferBindingSize: a.limits.maxStorageBufferBindingSize,
+  };
+}
+
+/** The adapter the page gets (optionally for a power preference) plus what each preference picks. */
+async function gpuInfo(powerPreference) {
+  if (!navigator.gpu) return { present: false };
+  const main = await adapterInfo(
+    powerPreference ? { powerPreference } : undefined,
+  );
+  const byPreference = {};
+  for (const pp of ["low-power", "high-performance"]) {
+    const i = await adapterInfo({ powerPreference: pp });
+    byPreference[pp] =
+      i.adapter === null
+        ? null
+        : `${i.vendor} ${i.architecture} ${i.description}`.trim();
+  }
+  return {
+    present: true,
+    requested: powerPreference ?? "default",
+    ...main,
+    byPreference,
   };
 }
 
@@ -84,6 +105,15 @@ function stopHeartbeat() {
 async function complete(messages, { maxTokens = MAX_TOKENS } = {}) {
   const prompt = renderChat(messages);
   const t0 = performance.now();
+  // Context rule (D-050): no history truncation. A prompt that, with the reply budget, would not fit ends the episode.
+  const nPrompt = (
+    await w.tokenize(prompt, { addSpecial: false, parseSpecial: true })
+  ).length;
+  if (nPrompt + maxTokens > loadedCtx) {
+    throw new Error(
+      `context_full: prompt ${nPrompt} + reply budget ${maxTokens} > n_ctx ${loadedCtx}`,
+    );
+  }
   const r = await w.createCompletion({
     prompt,
     max_tokens: maxTokens,
@@ -148,14 +178,14 @@ async function ffmpegRun({ clipUrl, jobArgs }) {
 
 window.spike = {
   logs: () => logs.slice(),
-  async env() {
+  async env(powerPreference) {
     return {
       crossOriginIsolated: self.crossOriginIsolated,
       sharedArrayBuffer: typeof SharedArrayBuffer !== "undefined",
       hardwareConcurrency: navigator.hardwareConcurrency,
       deviceMemoryGb: navigator.deviceMemory ?? null,
       userAgent: navigator.userAgent,
-      gpu: await gpuInfo(),
+      gpu: await gpuInfo(powerPreference),
       libllama: Wllama.getLibllamaVersion(),
     };
   },
@@ -191,6 +221,7 @@ window.spike = {
     });
     const ms = performance.now() - t0;
     const info = w.getLoadedContextInfo();
+    loadedCtx = info.n_ctx;
     const est = await navigator.storage.estimate();
     return {
       load_ms: ms,

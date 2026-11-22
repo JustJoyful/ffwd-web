@@ -1,0 +1,11 @@
+{
+  "name": "ffwd-wllama-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "description": "GGUF-in-the-browser spike (D-049, D-050). wllama lives HERE and not in the app: the app adopts it only after its release-age cooldown and a review (D-051).",
+  "devDependencies": {
+    "@wllama/wllama": "4.0.0"
+  }
+}

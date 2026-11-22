@@ -23,7 +23,7 @@ const TYPES = {
 export function routes(extra = {}) {
   const nm = (p) => join(SITE, "node_modules", p);
   return {
-    "/vendor/wllama/": nm("@wllama/wllama/esm/"),
+    "/vendor/wllama/": join(HERE, "node_modules/@wllama/wllama/esm/"), // wllama is a spike-only dependency (D-051)
     "/vendor/ffmpeg/": nm("@ffmpeg/ffmpeg/dist/esm/"),
     "/vendor/ffmpeg-util/": nm("@ffmpeg/util/dist/esm/"),
     "/ffmpeg/": join(SITE, "public/ffmpeg/"),

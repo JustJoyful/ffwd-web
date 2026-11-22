@@ -1,4 +1,8 @@
+packages:
+  - "spikes/*"
 allowBuilds:
   core-js: false
-minimumReleaseAgeExclude:
-  - "@wllama/wllama@4.0.0"
+# Supply-chain cooldown: a package version must be 1 day old before it can be installed. Strict, so pnpm errors
+# instead of silently adding a minimumReleaseAgeExclude entry (it did that once, for wllama 4.0.0; D-051).
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true

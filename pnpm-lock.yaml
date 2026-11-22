@@ -26,6 +26,9 @@ importers:
       '@react-router/node':
         specifier: 8.5.2
         version: 8.5.2(react-router@8.5.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
+      '@wllama/wllama':
+        specifier: 4.0.0
+        version: 4.0.0
       ajv:
         specifier: 8.17.1
         version: 8.17.1
@@ -63,9 +66,6 @@ importers:
       '@testing-library/react':
         specifier: 16.3.0
         version: 16.3.0(@testing-library/dom@10.4.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@wllama/wllama':
-        specifier: 4.0.0
-        version: 4.0.0
       eslint:
         specifier: 10.15.0
         version: 10.15.0(supports-color@7.2.0)
@@ -102,6 +102,12 @@ importers:
       vitest:
         specifier: 5.1.1
         version: 5.1.1(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(jsdom@31.0.1)(vite@8.3.8(@types/node@26.6.6))
+
+  spikes/wllama:
+    devDependencies:
+      '@wllama/wllama':
+        specifier: 4.0.0
+        version: 4.0.0
 
 packages:
 
