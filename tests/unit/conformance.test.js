@@ -39,7 +39,12 @@ const MEDIA_TODO = {
 
 // Pinned with the protocol but not checker suites: the benchmark commands (Plan C/D budgets), the chat template
 // (Plan E, WebLLM parity) and the timing chores.
-const OTHER = ["bench-jobs.json", "chat-template.json", "timing-chores.json"];
+const OTHER = [
+  "bench-jobs.json",
+  "chat-template.json",
+  "chat-template-tokens.json",
+  "timing-chores.json",
+];
 
 describe("the pinned suite is fully accounted for", () => {
   test("every file in protocol/conformance is wired here, a media todo, or listed as not a checker suite", () => {

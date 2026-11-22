@@ -1,9 +1,10 @@
 {
   "protocol_version": "0.3.0",
-  "source_commit": "03b93707496f996f38bb63db64cc5ba4b91b517a",
+  "source_commit": "52a748c3c5483b598850ed19189c21045d4f785f",
   "files": {
     "allowlist.json": "d6aefcfa3b03673214ab9ee2b145c242f56ae5bb4a9ce5fb185edff93961a57b",
     "conformance/bench-jobs.json": "9bed3d18448e5e28e8f7169c89c0361cd640d09f5999b7a0e4d27f19d17eac21",
+    "conformance/chat-template-tokens.json": "3c96ecc5eb33f99bbd3386b05bc036733589db73745b34902920e666b7e15552",
     "conformance/chat-template.json": "87bba29a21826ab41bef10ed5c566da50e841d4d889e1e063271c295d740a29a",
     "conformance/checker-frames.jsonl": "dffa1fdcbd57b663a57a265329f3da8c60bca76f3351a988d39dff06d3398675",
     "conformance/checker-invariants.jsonl": "e8d3bf061ab4358e5e144dce4d283524fb33697c74f8938c322c17ca629d50b8",
