@@ -7,6 +7,7 @@ import { ASK_MAX_CHARS } from "../config.js";
 import { INPUT_ID } from "../agent/browser-runtime.js";
 import AskUser from "../components/tool/AskUser.jsx";
 import CapabilityNotice from "../components/tool/CapabilityNotice.jsx";
+import ModelLoader, { modelBlocks } from "../components/tool/ModelLoader.jsx";
 import ModelPathNotice from "../components/tool/ModelPathNotice.jsx";
 import CommandReveal from "../components/tool/CommandReveal.jsx";
 import DownloadButton from "../components/tool/DownloadButton.jsx";
@@ -20,6 +21,7 @@ import RunProgress from "../components/tool/RunProgress.jsx";
 import StatusDot from "../components/tool/StatusDot.jsx";
 import Unsupported from "../components/tool/Unsupported.jsx";
 import Viewer from "../components/tool/Viewer.jsx";
+import { MACHINE_REASON, initialModelState } from "../model/contract.js";
 import { bindAnalytics } from "../tool/analytics-bridge.js";
 import { chipsFromSpec, displayArgs } from "../tool/chips.js";
 import { useTool } from "../tool/store.js";
@@ -56,7 +58,24 @@ const FAIL_TEXT = {
   turn_budget:
     "ffwd couldn't settle on a plan. Try wording the request differently.",
   policy_error: "The model couldn't answer. Reload the page and try again.",
+  // a model failure carries its own sentence in state.error (MODEL_ERROR_TEXT); these are only the fallback
+  too_long:
+    "This job got too long for the on-device model, so it was not done.",
+  model_unavailable: "The on-device model stopped, so nothing was made.",
+  aborted: "The job was stopped.",
 };
+const MODEL_REASONS = new Set(Object.values(MACHINE_REASON));
+// Why the request cannot be sent yet, in the order the model gets ready.
+const WAIT_HINT = {
+  needsConsent:
+    "ffwd can make a plan once you have downloaded the model. You can choose a video and type meanwhile.",
+  downloading:
+    "ffwd can make a plan once the model has downloaded. You can choose a video and type meanwhile.",
+  loading:
+    "ffwd can make a plan once the model has started. You can choose a video and type meanwhile.",
+  failed: "ffwd can't make a plan until the model has started.",
+};
+const NO_MODEL_ACTIONS = {};
 const IDLE = {
   plan: "A plan you can read appears here, before anything runs.",
   checks: "Each result is measured here.",
@@ -83,7 +102,11 @@ function Step({ n, title, mod, children }) {
 
 export default function App() {
   const [params] = useSearchParams();
-  const { state, dispatch, store } = useTool();
+  const tool = useTool();
+  const { state, dispatch, store } = tool;
+  // Until the model arrives in the store (stream A) the tool behaves as before: no model phase, nothing blocked.
+  const model = tool.model ?? initialModelState();
+  const modelActions = tool.modelActions ?? NO_MODEL_ACTIONS;
   // Category-and-number events for the funnel; subscribed before the tool's own start effect fires its first event.
   useEffect(() => bindAnalytics(store), [store]);
   // ?ask= comes from a chore page: it fills the field, the person still presses Enter
@@ -100,6 +123,7 @@ export default function App() {
   const name = state.name;
   const input = state.inputs[0];
   const unsupportedDevice = name === "unsupportedDevice";
+  const waiting = modelBlocks(model);
   const canPick = FILE_STATES.includes(name);
 
   const onFile = useCallback(
@@ -176,9 +200,17 @@ export default function App() {
     ["awaitingConfirm", "running", "checking", "done", "failed"].includes(name);
   const unreadable = name === "ready" && Boolean(state.error);
   const edited = name === "awaitingConfirm" && request.trim() !== state.request;
+  const requestLocked = ![
+    "checkingCapability",
+    "ready",
+    "probing",
+    "awaitingRequest",
+    "awaitingConfirm",
+  ].includes(name);
   const dot = unsupportedDevice
     ? "stopped"
-    : name === "checkingCapability"
+    : name === "checkingCapability" ||
+        ["downloading", "loading"].includes(model.phase)
       ? "starting"
       : WORKING.includes(name)
         ? "busy"
@@ -237,7 +269,15 @@ export default function App() {
           </div>
         ) : (
           <div className="win__body">
-            <ModelPathNotice path={state.path} notice={state.notice} />
+            <div className="modelzone">
+              <ModelPathNotice path={state.path} notice={state.notice} />
+              <ModelLoader
+                model={model}
+                onConsent={modelActions.consent}
+                onDecline={modelActions.decline}
+                onRetry={modelActions.retry}
+              />
+            </div>
             <div className="steps">
               <Step n={1} title="Video" mod={stepVideo}>
                 {file && (
@@ -281,16 +321,12 @@ export default function App() {
                         : { type: "requestSubmitted", request: text },
                     )
                   }
-                  locked={
-                    ![
-                      "checkingCapability",
-                      "ready",
-                      "probing",
-                      "awaitingRequest",
-                      "awaitingConfirm",
-                    ].includes(name)
+                  locked={requestLocked}
+                  // typing is allowed while the model is not ready, sending is not (the hint says why)
+                  canSubmit={(name === "awaitingRequest" || edited) && !waiting}
+                  hint={
+                    waiting && !requestLocked ? WAIT_HINT[model.phase] : null
                   }
-                  canSubmit={name === "awaitingRequest" || edited}
                   submitLabel={
                     name === "awaitingConfirm"
                       ? "Make a new plan"
@@ -359,8 +395,12 @@ export default function App() {
                   {name === "failed" && (
                     <div className="notice notice--bad" role="status">
                       <p className="notice__t">Nothing to download</p>
-                      <p>{FAIL_TEXT[state.reason] ?? state.reason}</p>
-                      {state.error && (
+                      <p>
+                        {state.error && MODEL_REASONS.has(state.reason)
+                          ? state.error
+                          : (FAIL_TEXT[state.reason] ?? state.reason)}
+                      </p>
+                      {state.error && !MODEL_REASONS.has(state.reason) && (
                         <p className="notice__detail">{state.error}</p>
                       )}
                       <button
