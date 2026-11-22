@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   bucketCount,
+  bucketLoadMs,
   bucketSeconds,
   bucketSize,
 } from "../../app/lib/buckets.js";
@@ -62,6 +63,34 @@ describe("sanitize", () => {
       landing_page: "home",
       referrer_domain: "news.example",
     });
+  });
+
+  test("the model events keep version, cache_hit and ms and drop prompt, file_name, path, url, email, text and the model URL", async () => {
+    const { sanitize } = await load();
+    const junk = {
+      prompt: "cut the first 3 seconds",
+      file_name: "holiday.mp4",
+      path: "webgpu",
+      url: "https://x.test/app?ask=secret",
+      model_url: "http://localhost:8080/grpo-m3-ckpt60-q5_k_m.gguf",
+      modelUrl: "http://localhost:8080/grpo-m3-ckpt60-q5_k_m.gguf",
+      email: "me@example.com",
+      text: "hello",
+      bytes: 444411456,
+    };
+    for (const event of ["model_load_started", "model_load_completed"])
+      expect(
+        sanitize(event, {
+          model_version: "agent-v0.1-0.6b-q5_k_m",
+          cache_hit: true,
+          ms: "2 to 5 s",
+          ...junk,
+        }),
+      ).toEqual({
+        model_version: "agent-v0.1-0.6b-q5_k_m",
+        cache_hit: true,
+        ms: "2 to 5 s",
+      });
   });
 
   test('a free-text value in an enum field becomes "other"', async () => {
@@ -279,6 +308,15 @@ describe("buckets", () => {
     expect(bucketCount(3)).toBe("2 to 3");
     expect(bucketCount(9)).toBe("4 or more");
     expect(bucketCount(0)).toBe("unknown");
+  });
+  test("model load time", () => {
+    expect(bucketLoadMs(900)).toBe("under 2 s");
+    expect(bucketLoadMs(2000)).toBe("2 to 5 s");
+    expect(bucketLoadMs(12_345)).toBe("5 to 15 s");
+    expect(bucketLoadMs(59_999)).toBe("15 to 60 s");
+    expect(bucketLoadMs(61_000)).toBe("over 60 s");
+    expect(bucketLoadMs(null)).toBe("unknown");
+    expect(bucketLoadMs(NaN)).toBe("unknown");
   });
 });
 
