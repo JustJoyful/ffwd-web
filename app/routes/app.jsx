@@ -51,6 +51,10 @@ const MIME = {
   mov: "video/quicktime",
   webm: "video/webm",
   mkv: "video/x-matroska",
+  m4a: "audio/mp4",
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  gif: "image/gif",
 };
 
 const FAIL_TEXT = {

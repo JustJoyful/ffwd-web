@@ -1,13 +1,10 @@
 // The three chores of the flow spec, each as the assistant replies a scripted policy plays (the model stands in
 // as text, so headless Chromium needs no WebGPU). The checks are the real ones, run on real ffmpeg.wasm output.
 const act = (a) => JSON.stringify(a);
-const spec = (output) =>
+const spec = (output, { family = "F1", kind = "video" } = {}) =>
   act({
     action: "spec",
-    spec: {
-      family: ["F1"],
-      outputs: [{ id: "out1", kind: "video", ...output }],
-    },
+    spec: { family: [family], outputs: [{ id: "out1", kind, ...output }] },
   });
 const run = (...args) =>
   act({ action: "run", args, inputs: ["clip"], outputs: ["out1"] });
@@ -91,6 +88,60 @@ export const CHORES = {
     download: "IMG_4021-ffwd.mp4",
     flags: ["-pix_fmt", "yuv420p"],
   },
+};
+
+// The two chores added after the first three. Vertical crops the 16:9 picture to its centre 9:16 strip first (cheaper
+// than scaling up and cropping) and scales it to 1080 x 1920. Audio is the sound track alone, re-encoded as AAC in
+// an .m4a: the wasm core has no MP3 encoder (see fixtures.js), and the spec says m4a so the output file is one.
+CHORES.vertical = {
+  recipe: "e2e_sample",
+  file: { name: "sample.mp4", type: "video/mp4" },
+  ask: "Make it vertical 9:16",
+  chips: [
+    ["Picture", "1080 × 1920"],
+    ["Crop", "centre, 9:16"],
+  ],
+  runs: 1,
+  script: [
+    spec(
+      { container: "mp4", video: { width: 1080, height: 1920 } },
+      { family: "F4" },
+    ),
+    run(
+      "-i",
+      "{in:clip}",
+      "-vf",
+      "crop=405:720,scale=1080:1920",
+      ...X264,
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      "{out:out1}",
+    ),
+  ],
+  download: "sample-ffwd.mp4",
+  flags: ["-vf", "crop=405:720,scale=1080:1920"],
+};
+CHORES.audio = {
+  recipe: "e2e_sample",
+  file: { name: "sample.mp4", type: "video/mp4" },
+  ask: "Extract the audio",
+  chips: [
+    ["Picture", "removed"],
+    ["Format", "M4A"],
+    ["Sound", "AAC"],
+  ],
+  runs: 1,
+  script: [
+    spec(
+      { container: "m4a", audio: { present: true, codec: "aac" } },
+      { family: "F9", kind: "audio" },
+    ),
+    run("-i", "{in:clip}", "-vn", "-c:a", "aac", "-b:a", "128k", "{out:out1}"),
+  ],
+  download: "sample-ffwd.m4a",
+  flags: ["-vn", "-c:a", "aac"],
 };
 
 export const UNSUPPORTED_SCRIPT = [

@@ -32,6 +32,8 @@ const checkRows = (page) => page.locator(".run .ck");
 for (const [id, chore, opts] of [
   ["trim", CHORES.trim, {}],
   ["size", CHORES.size, {}],
+  ["vertical", CHORES.vertical, {}],
+  ["audio", CHORES.audio, {}],
   // The iPhone chore also runs with reduced motion, in a phone-width window.
   [
     "iphone",
