@@ -505,6 +505,8 @@ async function speedprobe(o) {
       gen_n: r.timings.predicted_n,
       pp_tok_s: r.timings.prompt_per_second,
       gen_tok_s: r.timings.predicted_per_second,
+      finish: r.finish_reason,
+      text_head: r.text.slice(0, 140),
     });
   }
   writeJson(o.out, "speedprobe.json", { ...record(o, s), runs });
