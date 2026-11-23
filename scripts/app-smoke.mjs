@@ -117,6 +117,11 @@ const ctx = await chromium.launchPersistentContext(join(OUT, ".profile"), {
   viewport: { width: 1440, height: 900 },
 });
 const page = ctx.pages()[0] ?? (await ctx.newPage());
+// Playwright cannot drive the browser's native save dialog, so the download goes through the <a download> path (as in
+// tests/e2e/app-driver.js).
+await page.addInitScript(() => {
+  delete globalThis.showSaveFilePicker;
+});
 const report = {
   app: APP,
   steps: [],
@@ -199,14 +204,14 @@ await step("model asks before downloading", async () => {
 });
 await step("consent and download starts", async () => {
   await page.getByRole("button", { name: "Download" }).first().click();
-  await expect(page.getByRole("progressbar")).toBeVisible({ timeout: 60000 });
-  await page.waitForTimeout(1500);
-  return {
-    progress: await page
-      .getByRole("progressbar")
-      .first()
-      .getAttribute("aria-valuenow"),
-  };
+  // From localhost the 444 MB can arrive in a few seconds, so the bar may already be gone: record what was seen.
+  const bar = await page
+    .getByRole("progressbar")
+    .first()
+    .waitFor({ timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
+  return { sawProgressBar: bar };
 });
 await step("model downloaded, checked and started", async () => {
   const t0 = Date.now();
