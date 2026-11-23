@@ -10,6 +10,7 @@ const TOOL = [
   "app/agent/",
   "app/components/tool/",
   "app/tool/",
+  "app/model/", // the model client renders prompts with agent/chat-template.js; it is tool code, not marketing
 ];
 const FORBIDDEN =
   /(?:\/agent\/|\/workers\/|^@ffmpeg\/|^framer-motion$|^lucide-react$)/;
