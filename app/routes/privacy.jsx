@@ -26,15 +26,13 @@ const NOTE = {
     text: "You opened a page. It says which page, and the website you came from (the domain only, never the full address).",
   },
   capability_checked: {
-    text: "ffwd checked whether your browser can run it. It says whether WebGPU is available and, if not, which reason from a fixed list.",
+    text: "ffwd checked whether your browser can run it. It says whether the model will run on your graphics chip (WebGPU) or on the processor, and, if ffwd cannot run at all, which reason from a fixed list.",
   },
   model_load_started: {
-    text: "The model began downloading.",
-    soon: true,
+    text: "The model began downloading or loading. It says which version and whether it was already saved in your browser.",
   },
   model_load_completed: {
-    text: "The model finished loading. It says which version, whether it was already saved in your browser, and how long it took in milliseconds.",
-    soon: true,
+    text: "The model finished loading. It says which version, whether it was already saved in your browser, and how long it took as a range such as “5 to 15 s”.",
   },
   edit_started: {
     text: "A plan was shown for your request. It says which kind of chore (a code such as F1), whether it ran in the browser or the desktop app, and the size of your video and the number of files as ranges such as “10 to 100 MB”.",

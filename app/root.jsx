@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 import { Links, Meta, Outlet, Scripts, useLocation } from "react-router";
 import "./styles/fonts.css";
-import { initAnalytics } from "./lib/analytics.js";
-import { landingFromPath, siteVisit } from "./tool/analytics-bridge.js";
+import { analyticsSettings } from "./config.js";
 
 // Same inline script as mockup-v5: runs before paint so the "js" class and ?theme / ?font previews never flash.
 const headScript = `
@@ -52,11 +51,22 @@ let visited = false; // module state: StrictMode runs effects twice in dev, a pa
 export default function Root() {
   const { pathname } = useLocation();
   // One site_visit per page load (the path only matters on the first render). Nothing is sent without a PostHog key.
+  // The analytics code (the wrapper, the bridge and the bucket lists, about 4 kB gzip) is imported here, after the page
+  // is interactive, so it is not in the JavaScript every page loads up front (the 120 kB budget). With no key nothing
+  // would be sent, so it is not even fetched.
   useEffect(() => {
     if (visited) return;
     visited = true;
-    initAnalytics();
-    siteVisit({ landing: landingFromPath(pathname) });
+    if (!analyticsSettings().key) return;
+    Promise.all([
+      import("./lib/analytics.js"),
+      import("./tool/analytics-bridge.js"),
+    ])
+      .then(([a, b]) => {
+        a.initAnalytics();
+        b.siteVisit({ landing: b.landingFromPath(pathname) });
+      })
+      .catch(() => {}); // analytics must never break the page
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <Outlet />;

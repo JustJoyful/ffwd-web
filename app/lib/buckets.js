@@ -32,3 +32,14 @@ export const COUNT_BUCKETS = ["1", "2 to 3", "4 or more"];
 /** @param {number} n number of files */
 export const bucketCount = (n) =>
   Number.isFinite(n) && n < 1 ? "unknown" : pick(n, [2, 4], COUNT_BUCKETS);
+
+export const LOAD_BUCKETS = [
+  "under 2 s",
+  "2 to 5 s",
+  "5 to 15 s",
+  "15 to 60 s",
+  "over 60 s",
+];
+/** @param {number} ms how long the model took to load (the `ms` field of model_load_completed) */
+export const bucketLoadMs = (ms) =>
+  pick(typeof ms === "number" ? ms / 1000 : NaN, [2, 5, 15, 60], LOAD_BUCKETS);

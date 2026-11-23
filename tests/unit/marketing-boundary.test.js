@@ -50,3 +50,14 @@ test("no marketing source file imports the engine, workers, ffmpeg, framer-motio
     .filter(([, found]) => found.length);
   expect(offenders).toEqual([]);
 });
+
+// The home bundle budget (120 kB gzip, pnpm size) has little room: code the home page does not need before it is
+// interactive is imported lazily. A static import here puts it back into every page's first load.
+test("root.jsx and home.jsx import analytics and the showcase lazily, not statically", () => {
+  const root = readFileSync("app/root.jsx", "utf8");
+  const home = readFileSync("app/routes/home.jsx", "utf8");
+  expect(root).not.toMatch(/^import[^;]*(lib\/analytics|analytics-bridge)/m);
+  expect(home).not.toMatch(/^import[^;]*showcase\/showcase\.js/m);
+  expect(root).toMatch(/import\("\.\/lib\/analytics\.js"\)/);
+  expect(home).toMatch(/import\("\.\.\/showcase\/showcase\.js"\)/);
+});

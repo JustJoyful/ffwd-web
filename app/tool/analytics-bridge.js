@@ -1,9 +1,17 @@
 // Turns the tool's state changes into analytics events (ARCHITECTURE §9). It reads the machine's state only for
 // categories and numbers: which family, how many runs, a size or time bucket, a reason id. The request, the file
 // name, the model's sentences and paths are never read here, and analytics.js drops anything outside its lists anyway.
-// model_load_* and helper_* are in EVENTS but not sent yet: there is no model or helper until Plans E and Phase 3.
+// helper_* are in EVENTS but not sent yet: there is no helper until Phase 3. model_load_* come from the model client's
+// state (store.model, when the build has one): only the version, whether the file was cached, and the load time as a
+// range. A failed load has no event of its own: ARCHITECTURE §9 does not list one.
 import { track as realTrack } from "../lib/analytics.js";
-import { bucketCount, bucketSeconds, bucketSize } from "../lib/buckets.js";
+import {
+  bucketCount,
+  bucketLoadMs,
+  bucketSeconds,
+  bucketSize,
+} from "../lib/buckets.js";
+import { MODEL } from "../model/config.js";
 
 const FINISHED = ["done", "failed", "unsupported", "awaitingRequest"];
 // `-c copy` or `-c:v copy` leaves the picture as it was; anything else re-encodes it.
@@ -11,23 +19,54 @@ const reEncoded = (args = []) =>
   !args.some((a, i) => /^-c(:v)?$/.test(a) && args[i + 1] === "copy");
 
 /**
+ * model_load_started once, when the model first starts downloading or loading; model_load_completed once, when it is
+ * ready. A retry after a failure is not counted again, so started and completed stay comparable per page load.
+ * @param {{ getState(): import("../model/contract.js").ModelState, subscribe(fn: (s: any) => void): () => void } | undefined} model
+ */
+function bindModelAnalytics(model, track) {
+  if (!model) return () => {};
+  let started = false;
+  let completed = false;
+  const on = (s) => {
+    if (!started && ["downloading", "loading"].includes(s.phase)) {
+      started = true;
+      track("model_load_started", {
+        model_version: MODEL.version,
+        cache_hit: s.cached === true,
+      });
+    } else if (!completed && s.phase === "ready") {
+      completed = true;
+      track("model_load_completed", {
+        model_version: MODEL.version,
+        cache_hit: s.cached === true,
+        ms: bucketLoadMs(s.loadMs),
+      });
+    }
+  };
+  on(model.getState());
+  return model.subscribe(on);
+}
+
+/**
  * Subscribe to a tool store (or machine) and send one event per transition. Returns the unsubscribe function.
- * @param {{ getState(): import("../agent/machine.js").State, subscribe(fn: (s: any) => void): () => void }} store
+ * @param {{ getState(): import("../agent/machine.js").State, subscribe(fn: (s: any) => void): () => void, model?: any }} store
  * @param {{ track?: typeof realTrack }} [opts] injected by tests
  */
 export function bindAnalytics(store, { track = realTrack } = {}) {
+  const offModel = bindModelAnalytics(store.model, track);
   let prev = store.getState().name;
   let started = false; // edit_started was sent for this attempt
   let edited = false; // the person changed the request after seeing a plan
   let confirmedAt = 0;
-  return store.subscribe((s) => {
+  const off = store.subscribe((s) => {
     const name = s.name;
     if (name === prev) return;
     const from = prev;
     prev = name;
 
     if (from === "checkingCapability") {
-      const props = { webgpu: Boolean(globalThis.navigator?.gpu) };
+      // The path the capability check chose (a real adapter), not whether navigator.gpu exists: a software adapter is "cpu".
+      const props = { webgpu: s.path === "webgpu" };
       if (name === "unsupportedDevice") props.fail_reason = s.reason;
       track("capability_checked", props);
     }
@@ -66,6 +105,10 @@ export function bindAnalytics(store, { track = realTrack } = {}) {
       track("unsupported_shown", { category: "other" });
     }
   });
+  return () => {
+    off();
+    offModel();
+  };
 }
 
 /** The landing_page value for a path: a known page name, or a chore slug, never the visitor's own text. */

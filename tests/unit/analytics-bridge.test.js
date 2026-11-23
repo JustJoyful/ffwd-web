@@ -38,16 +38,119 @@ const open = async (m) => {
 
 afterEach(() => vi.unstubAllGlobals());
 
+// A stand-in for the model client (the contract's getState/subscribe), driven by the test.
+function fakeModel(first = {}) {
+  let s = { phase: "idle", cached: false, loadMs: null, ...first };
+  const subs = new Set();
+  return {
+    getState: () => s,
+    subscribe: (fn) => (subs.add(fn), () => subs.delete(fn)),
+    set(next) {
+      s = { ...s, ...next };
+      subs.forEach((fn) => fn(s));
+    },
+  };
+}
+function modelSetup(model) {
+  const m = createMachine({
+    policy: policyOf([]),
+    executor: fakeExecutor(),
+    measure: fakeMeasure(),
+    probeFile,
+  });
+  const track = vi.fn();
+  const off = bindAnalytics(Object.assign(m, { model }), { track });
+  return { m, track, off };
+}
+
+describe("capability_checked reports the real path", () => {
+  test("webgpu is false on the CPU path even when navigator.gpu exists", async () => {
+    vi.stubGlobal("navigator", { gpu: {} }); // a software adapter: the check chose "cpu"
+    const t = setup([]);
+    await t.m.dispatch({ type: "capabilityChecked", ok: true, path: "cpu" });
+    expect(t.track).toHaveBeenCalledWith("capability_checked", {
+      webgpu: false,
+    });
+  });
+});
+
+describe("model_load events", () => {
+  test("started once at the first downloading or loading, completed once at ready, with bucketed time", () => {
+    const model = fakeModel();
+    const { track } = modelSetup(model);
+    model.set({ phase: "needsConsent" });
+    expect(track).not.toHaveBeenCalled();
+    model.set({ phase: "downloading", loaded: 10, total: 444411456 });
+    model.set({ phase: "loading", cached: false });
+    model.set({ phase: "ready", path: "webgpu", loadMs: 7300 });
+    model.set({ phase: "ready" });
+    expect(track.mock.calls).toEqual([
+      [
+        "model_load_started",
+        { model_version: "agent-v0.1-0.6b-q5_k_m", cache_hit: false },
+      ],
+      [
+        "model_load_completed",
+        {
+          model_version: "agent-v0.1-0.6b-q5_k_m",
+          cache_hit: false,
+          ms: "5 to 15 s",
+        },
+      ],
+    ]);
+  });
+
+  test("a cached load says cache_hit, and sends only the whitelisted fields (no path, url, error text or sizes)", () => {
+    const model = fakeModel();
+    const { track } = modelSetup(model);
+    model.set({
+      phase: "loading",
+      cached: true,
+      total: 444411456,
+      path: "cpu",
+      error: { code: "load_failed", message: "http://secret.test/x.gguf" },
+    });
+    model.set({ phase: "ready", loadMs: 900 });
+    for (const [, props] of track.mock.calls)
+      expect(Object.keys(props).sort()).toEqual(
+        expect.arrayContaining(["cache_hit", "model_version"]),
+      );
+    expect(track.mock.calls[0][1].cache_hit).toBe(true);
+    expect(track.mock.calls[1][1].ms).toBe("under 2 s");
+    expect(JSON.stringify(track.mock.calls)).not.toMatch(
+      /secret|cpu|444411456/,
+    );
+  });
+
+  test("a failed load sends nothing (no model_load_failed event exists), and no model means no model events", () => {
+    const model = fakeModel();
+    const { track } = modelSetup(model);
+    model.set({
+      phase: "failed",
+      error: { code: "load_failed", message: "x" },
+    });
+    expect(track).not.toHaveBeenCalled();
+    expect(() => setup([])).not.toThrow(); // store.model is undefined in a scripted build
+  });
+
+  test("a model that is already loading when the tool binds is counted, and unsubscribing stops the events", () => {
+    const model = fakeModel({ phase: "loading", cached: true });
+    const { track, off } = modelSetup(model);
+    expect(track).toHaveBeenCalledTimes(1);
+    off();
+    model.set({ phase: "ready", loadMs: 100 });
+    expect(track).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("bindAnalytics", () => {
   test("capability_checked carries the reason id, or none when the device is fine", async () => {
     const a = setup([]);
-    vi.stubGlobal("navigator", { gpu: {} });
-    await a.m.dispatch({ type: "capabilityChecked", ok: true });
+    await a.m.dispatch({ type: "capabilityChecked", ok: true, path: "webgpu" });
     expect(a.track).toHaveBeenCalledWith("capability_checked", {
       webgpu: true,
     });
     const b = setup([]);
-    vi.stubGlobal("navigator", {});
     await b.m.dispatch({
       type: "capabilityChecked",
       ok: false,
