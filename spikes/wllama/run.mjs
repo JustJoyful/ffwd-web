@@ -12,9 +12,11 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -280,6 +282,39 @@ export async function runTokcheck(o) {
     return await s.page.evaluate((c) => window.spike.tokcheck(c), cases);
   } finally {
     await shutdown(s);
+    rmSync(profile, { recursive: true, force: true });
+  }
+}
+
+/**
+ * The app's worker host on a real wllama in real Chromium (see page.js hostSmoke). Computes the file's size and sha256
+ * itself, so it needs no published model; a fresh browser profile means the first init is a cold download from localhost.
+ */
+export async function runHostSmoke(o) {
+  const model = resolve(o.model);
+  const profile = resolve(
+    o.profile ?? `${SITE}/test-results/wllama-profile-host`,
+  );
+  rmSync(profile, { recursive: true, force: true });
+  const bytes = statSync(model).size;
+  const sha256 = createHash("sha256").update(readFileSync(model)).digest("hex");
+  const server = await startServer({
+    port: o.port,
+    extra: { "/model/": `${dirname(model)}/` },
+  });
+  const b = await launch(o, profile);
+  try {
+    return await b.page.evaluate((a) => window.spike.hostSmoke(a), {
+      url: `http://127.0.0.1:${o.port}/model/${basename(model)}`,
+      sha256,
+      bytes,
+      nCtx: o.ctx,
+      path: o.mode === "gpu" ? "webgpu" : "cpu",
+      prompt: "Say hi.",
+    });
+  } finally {
+    await b.ctx.close();
+    server.close();
     rmSync(profile, { recursive: true, force: true });
   }
 }

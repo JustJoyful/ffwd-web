@@ -340,6 +340,41 @@ window.spike = {
     return phases;
   },
 
+  /**
+   * The app's REAL worker host (app/model/model-host.js, the logic model.worker.js wires up) on a real wllama: cold init,
+   * one greedy turn, exit, then a warm init from the browser cache. Returns every message the host posted.
+   */
+  async hostSmoke({ url, sha256, bytes, nCtx, path, prompt }) {
+    const { createModelHost } = await import("/app/model/model-host.js");
+    const out = [];
+    const host = createModelHost({
+      post: (m) => out.push(m),
+      loadWllama: async () =>
+        new Wllama({ default: "/vendor/wllama/wasm/wllama.wasm" }, { logger }),
+    });
+    const init = {
+      type: "init",
+      modelUrl: url,
+      sha256,
+      bytes,
+      nCtx,
+      path,
+      kvCache: "q8_0",
+    };
+    await host.handle(init);
+    await host.handle({
+      type: "generate",
+      id: 1,
+      prompt: renderChat([{ role: "user", content: prompt }]),
+      maxTokens: 16,
+    });
+    await host.handle({ type: "exit" });
+    out.push({ type: "marker", note: "warm init follows" });
+    await host.handle(init);
+    await host.handle({ type: "exit" });
+    return out;
+  },
+
   async unload() {
     await w?.exit();
     w = null;
