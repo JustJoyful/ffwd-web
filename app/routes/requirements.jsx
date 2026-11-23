@@ -20,7 +20,7 @@ export function meta() {
     {
       name: "description",
       content:
-        "ffwd runs in a current desktop browser with WebGPU and enough memory. This page says what it checks and what to do if your computer fails a check.",
+        "ffwd runs in a current desktop browser with enough memory, and faster with WebGPU. This page says what it checks and what to do if your computer fails a check.",
     },
   ];
 }
