@@ -473,6 +473,45 @@ async function download(o) {
   rmSync(profile, { recursive: true, force: true });
 }
 
+/**
+ * Speed probe: load the model with the given flags and time a few cold and warm completions (timings from the runtime).
+ * Used to compare configurations on a slow machine (for example KV q8_0 + flash attention against f16) in minutes.
+ */
+async function speedprobe(o) {
+  mkdirSync(o.out, { recursive: true });
+  const profile = resolve(o.profile);
+  rmSync(profile, { recursive: true, force: true });
+  const s = await boot(o, { clearCache: true, profile });
+  const cases = JSON.parse(
+    readFileSync(
+      resolve(SITE, "protocol/conformance/chat-template-tokens.json"),
+      "utf8",
+    ),
+  ).cases;
+  const prompts = [
+    cases.find((c) => c.name.startsWith("first-turn:")),
+    cases.find((c) => c.name.startsWith("multi-turn:")),
+  ].map((c) => c.messages);
+  const runs = [];
+  for (const m of [...prompts, ...prompts]) {
+    const r = await s.page.evaluate(
+      (x) => window.spike.complete(x, { maxTokens: 64 }),
+      m,
+    );
+    runs.push({
+      wall_s: r.wall_ms / 1000,
+      prompt_n: r.timings.promptN ?? r.timings.prompt_n,
+      cache_n: r.timings.cacheN ?? r.timings.cache_n,
+      gen_n: r.timings.predicted_n,
+      pp_tok_s: r.timings.prompt_per_second,
+      gen_tok_s: r.timings.predicted_per_second,
+    });
+  }
+  writeJson(o.out, "speedprobe.json", { ...record(o, s), runs });
+  await shutdown(s);
+  rmSync(profile, { recursive: true, force: true });
+}
+
 async function bridge(o) {
   mkdirSync(o.out, { recursive: true });
   const profile = resolve(o.profile);
@@ -597,6 +636,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     loadtimes,
     coexist,
     memprobe,
+    speedprobe,
     download,
     tokcheck: async (x) => console.log(JSON.stringify(await runTokcheck(x))),
   }[o.cmd];
