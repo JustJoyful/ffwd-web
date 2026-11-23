@@ -1,6 +1,5 @@
 import "../styles/theme.css";
 import "../styles/pages.css";
-import { Link } from "react-router";
 import ChoreDiagram from "../components/site/ChoreDiagram.jsx";
 import { SiteFooter, SiteNav } from "../components/site/Shell.jsx";
 import { SITE_URL } from "../config.js";
@@ -85,9 +84,9 @@ export default function Chore({ params }) {
             <h2 id="related-h">Related chores</h2>
             <div className="linklist">
               {related.map((r) => (
-                <Link key={r.slug} to={`/chores/${r.slug}`}>
+                <a key={r.slug} href={`/chores/${r.slug}`}>
                   {r.title}
-                </Link>
+                </a>
               ))}
             </div>
           </section>

@@ -1,8 +1,8 @@
-import { Link } from "react-router";
-
 // The nav and footer of every page except the home page (which keeps its own copy of the same markup, ported 1:1 from
 // the approved mockup). Same classes, so the pages share the home page's look. "Open ffwd" is a plain <a>: the tool
 // is a different document and must load fresh, with the cross-origin isolation headers.
+// Every link on these pages is a plain <a>, not react-router's <Link>: the pages are prerendered, a click is a normal page
+// load, and <Link> would add its own chunk (about 3.5 kB gzip) to the chore page, which is held to the 120 kB budget.
 
 const Logo = () => (
   <svg viewBox="0 0 28 20" aria-hidden="true">
@@ -14,14 +14,14 @@ const Logo = () => (
 export function SiteNav() {
   return (
     <header className="nav">
-      <Link className="brand" to="/" aria-label="ffwd, home">
+      <a className="brand" href="/" aria-label="ffwd, home">
         <Logo />
         <span>ffwd</span>
-      </Link>
+      </a>
       <nav aria-label="Main">
-        <Link to="/chores">Chores</Link>
-        <Link to="/#checked">How it checks</Link>
-        <Link to="/privacy">Privacy</Link>
+        <a href="/chores">Chores</a>
+        <a href="/#checked">How it checks</a>
+        <a href="/privacy">Privacy</a>
         <a href="#">GitHub</a>
       </nav>
       <div className="nav__end">
@@ -39,11 +39,11 @@ export function SiteFooter({ credit = false }) {
     <footer className="foot">
       <div className="foot__links">
         <nav aria-label="Footer">
-          <Link to="/chores">Chores</Link>
-          <Link to="/#checked">How it checks</Link>
-          <Link to="/privacy">Privacy</Link>
-          <Link to="/requirements">System requirements</Link>
-          <Link to="/#research">Research</Link>
+          <a href="/chores">Chores</a>
+          <a href="/#checked">How it checks</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/requirements">System requirements</a>
+          <a href="/#research">Research</a>
           <a href="#">GitHub</a>
         </nav>
         <p>Licensed under GPL-3.0. [contact address]</p>

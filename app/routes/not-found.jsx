@@ -1,6 +1,5 @@
 import "../styles/theme.css";
 import "../styles/pages.css";
-import { Link } from "react-router";
 import { SiteFooter, SiteNav } from "../components/site/Shell.jsx";
 
 // COPY FOR OWNER REVIEW. Shown for any address that is not a page: it says so and gives a way home.
@@ -21,8 +20,8 @@ export default function NotFound() {
           <div className="prose" style={{ marginTop: "1.5rem" }}>
             <p>The address may have a typo, or the page may have moved.</p>
             <p>
-              <Link to="/">Go to the home page</Link>, or{" "}
-              <Link to="/chores">see the chores ffwd can do</Link>.
+              <a href="/">Go to the home page</a>, or{" "}
+              <a href="/chores">see the chores ffwd can do</a>.
             </p>
           </div>
         </div>

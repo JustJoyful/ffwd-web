@@ -1,6 +1,5 @@
 import "../styles/theme.css";
 import "../styles/pages.css";
-import { Link } from "react-router";
 import { SiteFooter, SiteNav } from "../components/site/Shell.jsx";
 import { chores } from "../content/chores.js";
 import { SITE_URL } from "../config.js";
@@ -33,10 +32,10 @@ export default function ChoresIndex() {
           </div>
           <div className="cards">
             {chores.map((c) => (
-              <Link key={c.slug} to={`/chores/${c.slug}`}>
+              <a key={c.slug} href={`/chores/${c.slug}`}>
                 <h2>{c.title}</h2>
                 <p>{c.question}</p>
-              </Link>
+              </a>
             ))}
           </div>
         </div>
