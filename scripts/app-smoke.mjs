@@ -539,7 +539,22 @@ await step(
         "Choose a video or drop one here. It stays on this computer.",
       ),
     ).toBeVisible({ timeout: 30000 });
-    await page.locator('input[type="file"]').setInputFiles(clip);
+    // A file chosen before the capability check has finished is ignored by the machine (it is not ready for one), so
+    // choose again until the video is read.
+    for (let i = 0; ; i++) {
+      await page.locator('input[type="file"]').setInputFiles(clip);
+      if (
+        await page
+          .getByText("smoke-clip.mp4")
+          .first()
+          .waitFor({ timeout: 8000 })
+          .then(() => true)
+          .catch(() => false)
+      )
+        break;
+      if (i >= 3)
+        throw new Error("the video was never read on the second visit");
+    }
     const check = watchFor("[data-check]");
     const t0 = Date.now();
     try {
