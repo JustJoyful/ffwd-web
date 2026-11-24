@@ -1,4 +1,4 @@
-import pin from "../../protocol/PIN.json";
+import { protocol_version } from "../../protocol/PIN.json";
 
 // What the app is BUILT FOR (D-053). The model itself (file, size, sha256, context, KV cache, token cap, canary) is not
 // here: it is read at run time from the release manifest ffwd-model.json (manifest.js) and refused when it does not
@@ -9,7 +9,7 @@ import pin from "../../protocol/PIN.json";
 //   PROTOCOL_VERSION: the protocol this site was synced to, read from protocol/PIN.json (scripts/sync-protocol.mjs), so a
 //     sync that bumps the protocol changes what the site accepts without a second edit.
 export const APP_VERSION = "1.0.0";
-export const PROTOCOL_VERSION = pin.protocol_version;
+export const PROTOCOL_VERSION = protocol_version;
 
 // Where the manifest comes from: build-time values, so a build names ONE pinned model release.
 //   VITE_MODEL_MANIFEST_URL     https URL of ffwd-model.json at a pinned Hugging Face tag or commit (never main; see

@@ -18,6 +18,7 @@
     "copy-core": "node scripts/copy-core.mjs",
     "e2e": "playwright test",
     "check:release": "node scripts/check-release.mjs",
+    "release:local": "node scripts/serve-release.mjs",
     "size": "size-limit",
     "lighthouse": "lhci autorun"
   },
