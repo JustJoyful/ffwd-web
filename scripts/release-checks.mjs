@@ -32,7 +32,7 @@ export function* walk(dir) {
 }
 
 /**
- * @param {{ out: string, info: { scripted?: boolean, modelUrl?: string | null, modelManifestSha256?: string | null, localTest?: boolean, posthogKey?: boolean } | null, allowAnalytics?: boolean }} p
+ * @param {{ out: string, info: { appVersion?: string, scripted?: boolean, modelUrl?: string | null, modelManifestSha256?: string | null, localTest?: boolean, posthogKey?: boolean } | null, allowAnalytics?: boolean }} p
  *   `info` is what scripts/postbuild.mjs recorded at build time (null when it is missing).
  * @returns {string[]} one plain sentence per problem; empty when the build may be published
  */
@@ -43,6 +43,12 @@ export function releaseProblems({ out, info, allowAnalytics = false }) {
       "build/build-info.json is missing: run `pnpm build` (it is written by scripts/postbuild.mjs) before checking.",
     );
   else {
+    // The version the build was made with must be package.json's now (a bump after the build means a stale build).
+    const current = JSON.parse(readFileSync("package.json", "utf8")).version;
+    if (info.appVersion !== current)
+      problems.push(
+        `The build was made with app version ${info.appVersion ?? "(unknown)"} but package.json says ${current}: run \`pnpm build\` again.`,
+      );
     // The model manifest (D-053): an https URL at a pinned tag or commit, and its sha256 pinned in the build.
     if (info.localTest)
       problems.push(
