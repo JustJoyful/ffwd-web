@@ -242,6 +242,23 @@ describe("a stored verdict is used as it is (the check runs once)", () => {
       bench: BENCH.cpu,
     });
   });
+  test("with a verdict the path is known while loading, so the notice never pairs the guess with the stored speed", async () => {
+    const first = make();
+    await first.client.begin("webgpu");
+    first.workers[0].ready({
+      path: "cpu",
+      selection: sel("fail", { cpu: BENCH.cpu }),
+    });
+    const second = await visit(first.storage);
+    expect(second.client.getState()).toMatchObject({
+      phase: "loading",
+      path: "cpu",
+      bench: BENCH.cpu,
+    });
+    // and with none (a probe) the path stays unknown until the worker says
+    const fresh = await visit(memoryStorage());
+    expect(fresh.client.getState().path).toBeNull();
+  });
   test("another adapter in the same browser asks again", async () => {
     const first = make();
     await first.client.begin("webgpu");

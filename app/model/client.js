@@ -147,6 +147,9 @@ export function createModelClient({
     // Quietly: the state is announced with the next change (needsConsent, loading), not once per detail.
     state = {
       ...state,
+      // with a stored verdict the path is known before the load: the notice must not show the capability guess next to
+      // the verdict's speed (it showed "graphics chip" with the processor's numbers)
+      path: v ? v.path : state.path,
       canary: v?.canary ?? null,
       fallback: v?.why ?? null,
       bench: v?.bench[v.path] ?? null,
