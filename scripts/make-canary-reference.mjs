@@ -6,10 +6,9 @@
 // The server must serve the SAME file as app/model/config.js (--gguf makes the script check its sha256) and the script
 // records the llama.cpp build the server reports. CPU, not GPU, so the reference is the plain float path.
 //
-// The prompt is a slice of the real protocol (the agent chat template, a trimmed system prompt, a real-shaped first
-// user turn): in-distribution so the model is confident and greedy decoding is stable across kernels (the smallest
-// log-probability gap between the best and second-best token over the 20 steps is recorded in stepMargins), and short
-// enough for a slow GPU. Its reply is the start of a "spec" action. Everything the browser needs is in the JSON: it
+// The prompt is the real protocol (the agent chat template, the real system prompt, a real-shaped first user turn):
+// in-distribution so the model is confident and greedy decoding is stable across kernels (the log-probability gap
+// between the best and second-best token at each of the 20 steps is recorded in stepMargins). Its reply is the start of a "spec" action. Everything the browser needs is in the JSON: it
 // never rebuilds the prompt.
 import { createHash } from "node:crypto";
 import { createReadStream, readFileSync, writeFileSync } from "node:fs";
@@ -32,13 +31,18 @@ const OUT = resolve(
 );
 const N_PREDICT = Number(arg("n", "20"));
 
-// Paragraphs 0, 2 and 3 of the real system prompt (who it is, the actions, the spec shape): about 770 tokens, the part
-// the first reply depends on. The whole prompt is 1330 tokens, which an iGPU would spend over a minute reading.
+// The WHOLE system prompt (1333 tokens), on purpose: the Intel iGPU computes shorter prompts correctly and gives garbage
+// from somewhere between 837 and 881 tokens on (measured, reports/2026-11-24-canary/study), and a real job's first
+// turn is this long. A canary that is shorter than the real workload would pass on a path that fails the real job.
+// --paragraphs picks a subset, only for experiments like that bisection.
 const PARAGRAPHS = readFileSync(
   new URL("../protocol/prompts/system-v1.txt", import.meta.url),
   "utf8",
 ).split("\n\n");
-export const SYSTEM = [0, 2, 3].map((i) => PARAGRAPHS[i]).join("\n\n");
+export const SYSTEM = arg("paragraphs", "0,1,2,3,4,5,6")
+  .split(",")
+  .map((i) => PARAGRAPHS[Number(i)])
+  .join("\n\n");
 export const USER = `{"request": "Cut the first 2 seconds off", "inputs": [{"id": "clip", "probe": {"container": "mov,mp4,m4a,3gp,3g2,mj2", "duration_s": 6.0, "size_bytes": 200000, "streams": [{"index": 0, "type": "video", "codec": "h264", "width": 640, "height": 360, "fps": 25.0, "pix_fmt": "yuv420p", "rotation": 0}, {"index": 1, "type": "audio", "codec": "aac", "sample_rate": 44100, "channels": 1}]}}], "outputs": ["out1"]}`;
 const messages = [
   { role: "system", content: SYSTEM },

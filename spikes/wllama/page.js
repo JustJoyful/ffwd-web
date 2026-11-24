@@ -239,6 +239,42 @@ window.spike = {
     };
   },
 
+  /**
+   * The WebGPU canary (app/model/canary.js): the reference prompt, greedy, then the ids of what came out (tokenised the
+   * way the app does it, special tokens NOT parsed) against the native reference ids. `runs` repeats it to see timing
+   * (the first run on a GPU includes shader compilation) and determinism.
+   */
+  async canary({ prompt, maxTokens, tokens, runs = 2 }) {
+    const out = [];
+    for (let i = 0; i < runs; i++) {
+      const t0 = performance.now();
+      const r = await w.createCompletion({
+        prompt,
+        max_tokens: maxTokens,
+        temperature: 0,
+        seed: 1,
+      });
+      const wall_ms = performance.now() - t0;
+      const text = r.choices[0].text;
+      const ids = await w.tokenize(text, {
+        addSpecial: false,
+        parseSpecial: false,
+      });
+      let matched = 0;
+      while (matched < tokens.length && ids[matched] === tokens[matched]) {
+        matched++;
+      }
+      out.push({
+        text,
+        ids,
+        matched,
+        of: tokens.length,
+        wall_ms,
+        timings: r.timings,
+      });
+    }
+    return out;
+  },
   complete,
   /** One cross-origin ranged fetch, the way the runtime downloads: status and the CORS-visible headers. */
   async corsProbe(url) {
