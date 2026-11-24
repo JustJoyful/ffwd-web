@@ -32,7 +32,7 @@ const NOTE = {
     text: "The model began downloading or loading. It says which version and whether it was already saved in your browser.",
   },
   model_load_completed: {
-    text: "The model finished loading. It says which version, whether it was already saved in your browser, and how long it took as a range such as “5 to 15 s”.",
+    text: "The model finished loading. It says which version, whether it was already saved in your browser, how long it took as a range such as “5 to 15 s”, whether it runs on your graphics chip or your processor, and what the one-time graphics check found (passed, failed, or skipped). It never says which graphics chip you have; that stays in your browser.",
   },
   edit_started: {
     text: "A plan was shown for your request. It says which kind of chore (a code such as F1), whether it ran in the browser or the desktop app, and the size of your video and the number of files as ranges such as “10 to 100 MB”.",

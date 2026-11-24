@@ -95,12 +95,14 @@ describe("model_load events", () => {
           model_version: "agent-v0.1-0.6b-q5_k_m",
           cache_hit: false,
           ms: "5 to 15 s",
+          model_path: "webgpu",
+          canary: "skipped", // no verdict known yet: the coarse default
         },
       ],
     ]);
   });
 
-  test("a cached load says cache_hit, and sends only the whitelisted fields (no path, url, error text or sizes)", () => {
+  test("a cached load says cache_hit, and sends only the whitelisted fields (no adapter, url, error text, speeds or sizes)", () => {
     const model = fakeModel();
     const { track } = modelSetup(model);
     model.set({
@@ -108,6 +110,8 @@ describe("model_load events", () => {
       cached: true,
       total: 444411456,
       path: "cpu",
+      canary: "fail",
+      bench: { ppTokS: 58.1, genTokS: 36.3 },
       error: { code: "load_failed", message: "http://secret.test/x.gguf" },
     });
     model.set({ phase: "ready", loadMs: 900 });
@@ -117,9 +121,14 @@ describe("model_load events", () => {
       );
     expect(track.mock.calls[0][1].cache_hit).toBe(true);
     expect(track.mock.calls[1][1].ms).toBe("under 2 s");
-    expect(JSON.stringify(track.mock.calls)).not.toMatch(
-      /secret|cpu|444411456/,
-    );
+    expect(track.mock.calls[1][1]).toMatchObject({
+      model_path: "cpu",
+      canary: "fail",
+    });
+    // the coarse words are the only place "cpu" may appear: no URL, size, speed or error text
+    expect(
+      JSON.stringify(track.mock.calls).replace(/"(cpu|fail)"/g, ""),
+    ).not.toMatch(/secret|cpu|444411456|58\.1|36\.3|bench/);
   });
 
   test("a failed load sends nothing (no model_load_failed event exists), and no model means no model events", () => {
