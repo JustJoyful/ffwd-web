@@ -2,6 +2,7 @@
 //  - 404.html: Cloudflare Pages serves /404.html for any address with no file (the prerendered 404 page).
 //  - sitemap.xml and robots.txt, generated from the chore list so a new chore is listed without a second edit.
 import { copyFileSync, writeFileSync } from "node:fs";
+import { loadEnv } from "vite";
 import { chores } from "../app/content/chores.js";
 import { SITE_URL } from "../app/config.js";
 
@@ -10,6 +11,25 @@ const OUT = "build/client";
 const site = process.env.VITE_SITE_URL ?? SITE_URL;
 
 copyFileSync(`${OUT}/404/index.html`, `${OUT}/404.html`);
+
+// What this build was made with, for `pnpm check:release` (outside build/client, so it is never served). Vite reads
+// VITE_* from the shell and from .env files; so does this.
+const env = {
+  ...loadEnv("production", process.cwd(), "VITE_"),
+  ...process.env,
+};
+writeFileSync(
+  "build/build-info.json",
+  JSON.stringify(
+    {
+      scripted: env.VITE_SCRIPTED_POLICY === "1",
+      modelUrl: env.VITE_MODEL_URL || null,
+      posthogKey: Boolean(env.VITE_POSTHOG_KEY),
+    },
+    null,
+    2,
+  ) + "\n",
+);
 
 const pages = [
   "",

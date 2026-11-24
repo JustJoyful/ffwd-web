@@ -1,0 +1,24 @@
+Launch items for the hosted site (what `pnpm check:release` fails on, and what to do about it)
+=================================================================================================
+
+Run `pnpm build` and `pnpm check:release` in the SAME shell: the check reads build/build-info.json, which postbuild.mjs
+writes from the VITE_* values the build was made with.
+
+1. The ffmpeg core does not fit on Cloudflare Pages (review B2).
+   build/client/ffmpeg/ffmpeg-core.wasm is 32,718,323 bytes (31.2 MiB). Pages serves a file of at most 25 MiB, so a deploy
+   of this build fails or loses the file. public/ffmpeg/ is git-ignored and `pnpm build` does not run `pnpm copy-core`,
+   so a clean checkout builds with no /ffmpeg files at all. Either way the page then fetches the 404 page as its video
+   engine (it now says "ffwd's video engine didn't start", but the tool does not work).
+   The core must be served from R2 (or split into files under 25 MiB). The plan in WEB_ARCHITECTURE.md section 8 is R2 on
+   an assets host with CORS for the site origin, `Cross-Origin-Resource-Policy: cross-origin`, and a versioned path.
+   NOT DONE: FFMPEG_CORE_BASE (app/agent/config.js) is still the fixed string "/ffmpeg"; it has to become a build-time
+   value when the host exists, and the CSP connect-src in scripts/postbuild.mjs has to name that host.
+   check-release fails on this today, by file name, so it cannot be forgotten.
+
+2. A model URL. VITE_MODEL_URL must be set at build time to an https URL on a public host (not localhost). Without it the
+   page says the model is not published yet. The privacy page names this host from the same value.
+
+3. Analytics are off unless VITE_POSTHOG_KEY is set at build time. check-release fails if a key is in the build, unless
+   FFWD_ANALYTICS_ON=1 is set to say the owner decided to switch it on. (Persistence is "memory": see app/config.js.)
+
+4. Placeholder text on the pages ([contact address], [role line], the [Confirm ...] notes, the SITE_URL placeholder).
