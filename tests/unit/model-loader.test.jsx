@@ -5,7 +5,7 @@ import ModelLoader, {
   mb,
   modelBlocks,
 } from "../../app/components/tool/ModelLoader.jsx";
-import { MODEL } from "../../app/model/config.js";
+import { MODEL } from "./model-fixture.js";
 import {
   MODEL_ERROR_TEXT,
   initialModelState,
@@ -37,11 +37,6 @@ describe("ModelLoader", () => {
     expect(onConsent).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Not now" }));
     expect(onDecline).toHaveBeenCalledTimes(1);
-  });
-
-  test("needsConsent before the total is known still names the config's size", () => {
-    show(model({ phase: "needsConsent" }));
-    expect(screen.getByRole("status").textContent).toContain(MB);
   });
 
   test("Not now says the job cannot run and offers Download again, with focus kept", () => {

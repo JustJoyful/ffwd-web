@@ -34,7 +34,8 @@ function build(edit = () => {}) {
   return dir;
 }
 const GOOD = {
-  modelUrl: "https://huggingface.co/x/y/resolve/main/m.gguf",
+  modelUrl: "https://huggingface.co/x/ffwd-0.6b/resolve/v1.0.0/ffwd-model.json",
+  modelManifestSha256: "a".repeat(64),
   scripted: false,
   posthogKey: false,
 };
@@ -45,25 +46,48 @@ describe("releaseProblems", () => {
   test("a build with everything in place passes", () => {
     expect(check(build())).toEqual([]);
   });
-  test("no model URL, a non-https URL and a local URL each fail", () => {
+  test("no manifest URL, a non-https URL, a moving or unpinned revision and a local URL each fail", () => {
     const dir = build();
-    expect(check(dir, { ...GOOD, modelUrl: null }).join("\n")).toMatch(
-      /VITE_MODEL_URL was not set/,
+    const why = (modelUrl) => check(dir, { ...GOOD, modelUrl }).join("\n");
+    expect(why(null)).toMatch(/VITE_MODEL_MANIFEST_URL was not set/);
+    expect(why("http://example.org/v1.0.0/ffwd-model.json")).toMatch(
+      /must be https/,
     );
+    expect(why("not a url")).toMatch(/not a URL/);
     expect(
-      check(dir, { ...GOOD, modelUrl: "http://example.org/m.gguf" }).join("\n"),
-    ).toMatch(/must be an https URL/);
-    expect(check(dir, { ...GOOD, modelUrl: "not a url" }).join("\n")).toMatch(
-      /must be an https URL/,
+      why("https://huggingface.co/x/y/resolve/main/ffwd-model.json"),
+    ).toMatch(/moving revision/);
+    expect(
+      why("https://huggingface.co/x/y/resolve/v1.0.0/ffwd-model.json?a=1"),
+    ).toMatch(/no query string/);
+    expect(why("https://huggingface.co/x/y/ffwd-model.json")).toMatch(
+      /no pinned revision/,
     );
-    expect(
-      check(dir, { ...GOOD, modelUrl: "https://localhost:8080/m.gguf" }).join(
-        "\n",
-      ),
-    ).toMatch(/points at this machine/);
-    expect(
-      check(dir, { ...GOOD, modelUrl: "https://127.0.0.1/m.gguf" }).join("\n"),
-    ).toMatch(/points at this machine/);
+    expect(why("https://localhost:8080/v1.0.0/ffwd-model.json")).toMatch(
+      /points at this machine/,
+    );
+    expect(why("https://127.0.0.1/v1.0.0/ffwd-model.json")).toMatch(
+      /points at this machine/,
+    );
+  });
+  test("the manifest's own sha256 must be pinned in the build", () => {
+    const dir = build();
+    for (const modelManifestSha256 of [null, "abc"])
+      expect(check(dir, { ...GOOD, modelManifestSha256 }).join("\n")).toMatch(
+        /VITE_MODEL_MANIFEST_SHA256/,
+      );
+  });
+  test("a stamped LOCAL TEST build always fails, and only for that reason (even with otherwise good facts)", () => {
+    const p = check(build(), {
+      modelUrl: "http://localhost:8765/ffwd-model.json",
+      modelManifestSha256: "a".repeat(64),
+      localTest: true,
+    });
+    expect(p).toHaveLength(1);
+    expect(p[0]).toMatch(/LOCAL TEST build/);
+    expect(check(build(), { ...GOOD, localTest: true }).join("\n")).toMatch(
+      /LOCAL TEST build/,
+    );
   });
   test("a scripted (stub model) build fails", () => {
     expect(check(build(), { ...GOOD, scripted: true }).join("\n")).toMatch(

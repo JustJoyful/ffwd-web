@@ -15,7 +15,7 @@ const isolateDevServer = {
         res.setHeader(
           "Content-Security-Policy",
           buildCsp({
-            modelUrl: process.env.VITE_MODEL_URL,
+            modelUrl: process.env.VITE_MODEL_MANIFEST_URL,
             analyticsHost: null,
             dev: true,
           }),

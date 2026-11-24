@@ -45,6 +45,7 @@ const OTHER = [
   "chat-template.json",
   "chat-template-tokens.json",
   "timing-chores.json",
+  "model-manifest.jsonl", // tests/unit/model-manifest.test.js
 ];
 
 describe("the pinned suite is fully accounted for", () => {

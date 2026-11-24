@@ -7,7 +7,7 @@ import {
   initialModelState,
   validateWorkerMessage,
 } from "../../app/model/contract.js";
-import { MODEL } from "../../app/model/config.js";
+import { MODEL } from "./model-fixture.js";
 
 const INIT = {
   type: "init",
@@ -32,7 +32,7 @@ describe("worker messages", () => {
     { ...INIT, path: "cpu", threads: 4 },
     { type: "generate", id: 1, prompt: "<|im_start|>user\nhi", maxTokens: 512 },
     { type: "exit" },
-    { ...INIT, probe: true },
+    { ...INIT, probe: true, canary: MODEL.canary },
     { type: "progress", phase: "download", loaded: 5, total: 10 },
     { type: "progress", phase: "check", loaded: 0, total: 0, step: "canary" },
     {
@@ -76,6 +76,11 @@ describe("worker messages", () => {
     ["no type", {}],
     ["unknown type", { type: "ping" }],
     ["init without a model url", { ...INIT, modelUrl: "" }],
+    ["probe without a canary", { ...INIT, probe: true }],
+    [
+      "canary that wants more matches than it has ids",
+      { ...INIT, probe: true, canary: { ...MODEL.canary, minMatch: 99 } },
+    ],
     ["init with a short hash", { ...INIT, sha256: "abc" }],
     ["init with an unknown path", { ...INIT, path: "gpu" }],
     ["init with an unknown kv cache", { ...INIT, kvCache: "q4_0" }],
@@ -189,9 +194,9 @@ describe("the model state and config", () => {
       fallback: null,
     });
   });
-  test("the config is the owner-confirmed configuration (D-050, D-051)", () => {
+  test("the config read from the release manifest is the owner-confirmed configuration (D-050, D-051, D-053)", () => {
     expect(MODEL).toMatchObject({
-      file: "grpo-m3-ckpt60-q5_k_m.gguf",
+      file: "ffwd-0.6b-v1.0.0-Q5_K_M.gguf",
       bytes: 444411456,
       sha256:
         "bbf439b749c02c04b5227ab93fb1430263a7c567c15552b6e12ae3836cde1e11",

@@ -41,6 +41,9 @@ export const ERROR_CODES = [
   "context_full",
   "generate_failed",
   "aborted",
+  // 2026-11-24 (D-053): the release manifest was refused (wrong protocol, app too old, files or prompt that do not match,
+  // not the pinned file). Nothing was downloaded. Added on the owner's fail-closed rule; pinned in model-contract.test.js.
+  "model_refused",
 ];
 
 /**
@@ -50,7 +53,8 @@ export const ERROR_CODES = [
  * `probe: true` (graphics-capable device, no verdict cached yet): `path` is "webgpu" and the worker decides (see top). With
  * `probe: true` and path "cpu" (no usable adapter) it only benchmarks the processor. Without `probe` the path is loaded as asked.
  * `threads` applies to the processor engine only.
- * @typedef {{ type: "init", modelUrl: string, sha256: string, bytes: number, nCtx: number, path: ModelPath, kvCache: "q8_0" | "f16", threads?: number, probe?: boolean }} InitMsg
+ * @typedef {{ type: "init", modelUrl: string, sha256: string, bytes: number, nCtx: number, path: ModelPath, kvCache: "q8_0" | "f16", threads?: number, probe?: boolean, canary?: { prompt: string, tokens: number[], minMatch: number } }} InitMsg
+ *   `canary` (from the release manifest, 2026-11-24) is required with `probe: true`: the worker holds no reference of its own
  * @typedef {{ type: "generate", id: number, prompt: string, maxTokens: number }} GenerateMsg
  * @typedef {{ type: "exit" }} ExitMsg
  *
@@ -114,6 +118,8 @@ export const MODEL_ERROR_TEXT = {
   generate_failed:
     "The on-device model stopped while working. Try the request again.",
   aborted: "The job was stopped.",
+  model_refused:
+    "This version of ffwd cannot use the current model, so nothing was downloaded. Reload the page; if that does not help, the site needs an update.",
 };
 
 const isObj = (m) => m !== null && typeof m === "object";
@@ -144,6 +150,21 @@ export function validateWorkerMessage(m) {
         bad("threads");
       }
       if (m.probe !== undefined && typeof m.probe !== "boolean") bad("probe");
+      if (m.probe === true || m.canary !== undefined) {
+        const k = m.canary;
+        if (
+          !isObj(k) ||
+          typeof k.prompt !== "string" ||
+          !k.prompt ||
+          !Array.isArray(k.tokens) ||
+          k.tokens.length === 0 ||
+          !k.tokens.every(int) ||
+          !int(k.minMatch) ||
+          k.minMatch === 0 ||
+          k.minMatch > k.tokens.length
+        )
+          bad("canary (prompt, tokens, minMatch) is required when probing");
+      }
       return m;
     case WORKER_IN.GENERATE:
       if (!int(m.id)) bad("id");
@@ -232,4 +253,5 @@ export const MACHINE_REASON = {
   out_of_memory: "model_unavailable",
   generate_failed: "model_unavailable",
   aborted: "aborted",
+  model_refused: "model_unavailable",
 };

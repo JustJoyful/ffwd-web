@@ -71,7 +71,7 @@ describe("/app while the model is not ready", () => {
   ])(
     "%s: the request is typed but not sent, and a hint says why",
     (phase, why) => {
-      vi.stubEnv("VITE_MODEL_URL", "http://localhost/m.gguf");
+      vi.stubEnv("VITE_MODEL_MANIFEST_URL", "http://localhost/m.gguf");
       const dispatch = setTool(
         {},
         {
@@ -96,7 +96,7 @@ describe("/app while the model is not ready", () => {
   );
 
   test("the model box offers Download and calls the store's consent", () => {
-    vi.stubEnv("VITE_MODEL_URL", "http://localhost/m.gguf");
+    vi.stubEnv("VITE_MODEL_MANIFEST_URL", "http://localhost/m.gguf");
     const modelActions = { consent: vi.fn(), decline: vi.fn(), retry: vi.fn() };
     setTool({}, { phase: "needsConsent" }, modelActions);
     renderApp();
@@ -195,7 +195,7 @@ describe("the status dot never says Ready while the model cannot answer", () => 
     ["loading", "Starting"],
     ["failed", "Stopped"],
   ])("model %s: %s", (phase, words) => {
-    vi.stubEnv("VITE_MODEL_URL", "http://localhost/m.gguf");
+    vi.stubEnv("VITE_MODEL_MANIFEST_URL", "http://localhost/m.gguf");
     setTool(
       {},
       { phase, total: 5, error: { code: "load_failed", message: "" } },

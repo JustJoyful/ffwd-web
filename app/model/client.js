@@ -5,8 +5,12 @@
 //
 // Flow: begin() -> already in this browser's cache? yes: load it, no question asked. No: phase "needsConsent" until the
 // person agrees to download `config.bytes` once (consent) or declines (the phase stays "needsConsent", and policy()
-// rejects with code "aborted"). No model URL at all (it is not published yet): phase "failed", load_failed, never a
-// fake download.
+// rejects with code "aborted"). No manifest URL at all (the model is not published yet): phase "failed", load_failed,
+// never a fake download.
+//
+// The model's file, size, hash and runtime settings come from the release manifest (manifest.js, D-053), fetched before
+// the consent question (it is a tiny file, not the download). A manifest the app must not use ends in phase "failed" with
+// code "model_refused" and the reason; nothing is downloaded, and nothing falls back to built-in values.
 //
 // Choosing the path (2026-11-24): the verdict for this device and model lives in localStorage (path-cache.js). No verdict:
 // the worker is started in "probe" mode (canary + speed test, see model-host.js) and the verdict it reports is stored.
@@ -15,7 +19,7 @@
 // graphics path broken, swap the worker for a processor one and answer the SAME step from the processor, so the job goes on.
 import { renderChat } from "../agent/chat-template.js";
 import { defaultCpuThreads, readAdapter } from "../lib/capability.js";
-import { MODEL, PATH_CHOICE, modelUrl } from "./config.js";
+import { PATH_CHOICE, modelManifestUrl } from "./config.js";
 import {
   WORKER_IN,
   WORKER_OUT,
@@ -48,17 +52,23 @@ async function defaultIsCached(url, config) {
   }
 }
 
+// Lazy: the manifest code (Ajv, the schema, the prompt) is only fetched once a file has been chosen.
+const defaultLoadConfig = async () =>
+  (await import("./manifest.js")).loadManifest();
+
 const defaultWorkerFactory = () =>
   new Worker(new URL("./model.worker.js", import.meta.url), { type: "module" });
 
 /**
- * @param {{ workerFactory?: () => { postMessage: (m: object) => void, terminate: () => void, onmessage: ((e: { data: any }) => void) | null, onerror: ((e: any) => void) | null }, config?: typeof MODEL, url?: string | null, getPath?: () => "webgpu" | "cpu", isCached?: (url: string, config: typeof MODEL) => Promise<boolean>, getAdapter?: typeof readAdapter, storage?: Storage, threads?: number, isValidReply?: ((reply: string) => boolean) | null, now?: () => number }} [opts]
+ * @param {{ workerFactory?: () => { postMessage: (m: object) => void, terminate: () => void, onmessage: ((e: { data: any }) => void) | null, onerror: ((e: any) => void) | null }, config?: import("./manifest.js").ModelConfig | null, manifestUrl?: string | null, loadConfig?: () => Promise<import("./manifest.js").ModelConfig>, getPath?: () => "webgpu" | "cpu", isCached?: (url: string, config: import("./manifest.js").ModelConfig) => Promise<boolean>, getAdapter?: typeof readAdapter, storage?: Storage, threads?: number, isValidReply?: ((reply: string) => boolean) | null, now?: () => number }} [opts]
+ *   `config` (tests) skips the manifest; otherwise `loadConfig` (default: the lazy manifest.js loadManifest) reads it.
  *   getAdapter / storage / threads / now exist for the tests; isValidReply switches the runtime safety net on.
  */
 export function createModelClient({
   workerFactory = defaultWorkerFactory,
-  config = MODEL,
-  url = modelUrl(),
+  config = null,
+  manifestUrl = modelManifestUrl(),
+  loadConfig = defaultLoadConfig,
   getPath,
   isCached = defaultIsCached,
   getAdapter = readAdapter,
@@ -123,14 +133,14 @@ export function createModelClient({
     worker.onerror = (e) => crash(e?.message || "the model worker crashed");
     worker.postMessage({
       type: WORKER_IN.INIT,
-      modelUrl: url,
+      modelUrl: config.url,
       sha256: config.sha256,
       bytes: config.bytes,
       nCtx: config.nCtx,
       path: plan.path,
       kvCache: config.kvCache,
       threads,
-      ...(plan.probe ? { probe: true } : {}),
+      ...(plan.probe ? { probe: true, canary: config.canary } : {}),
     });
   }
 
@@ -264,13 +274,32 @@ export function createModelClient({
     });
 
   async function start() {
-    if (!url) {
-      return set({
-        phase: "failed",
-        error: { code: "load_failed", message: NOT_PUBLISHED },
-      });
+    if (!config) {
+      if (!manifestUrl) {
+        return set({
+          phase: "failed",
+          error: { code: "load_failed", message: NOT_PUBLISHED },
+        });
+      }
+      try {
+        config = await loadConfig();
+      } catch (e) {
+        if (disposed) return;
+        return set({
+          phase: "failed",
+          error: {
+            code:
+              e?.name === "ManifestRefused" ? "model_refused" : "load_failed",
+            message: e?.message || "the model description could not be read",
+          },
+        });
+      }
+      if (disposed) return;
     }
-    const [warm] = await Promise.all([isCached(url, config), decidePlan()]);
+    const [warm] = await Promise.all([
+      isCached(config.url, config),
+      decidePlan(),
+    ]);
     if (disposed) return;
     if (warm) launch(true);
     else if (consented) launch(false);
@@ -324,6 +353,8 @@ export function createModelClient({
 
   return {
     getState: () => state,
+    /** The validated manifest config once it is read (null before): analytics names the model version from it. */
+    getConfig: () => config,
     subscribe(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);

@@ -2,6 +2,7 @@
 // tests/unit/release-checks.test.js can feed them fixtures. scripts/check-release.mjs is the command line around them.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { manifestUrlProblem } from "../app/model/manifest-url.js";
 
 // Placeholder or mockup-only text that must be gone before publishing.
 export const UNFINISHED = [
@@ -31,7 +32,7 @@ export function* walk(dir) {
 }
 
 /**
- * @param {{ out: string, info: { scripted?: boolean, modelUrl?: string | null, posthogKey?: boolean } | null, allowAnalytics?: boolean }} p
+ * @param {{ out: string, info: { scripted?: boolean, modelUrl?: string | null, modelManifestSha256?: string | null, localTest?: boolean, posthogKey?: boolean } | null, allowAnalytics?: boolean }} p
  *   `info` is what scripts/postbuild.mjs recorded at build time (null when it is missing).
  * @returns {string[]} one plain sentence per problem; empty when the build may be published
  */
@@ -42,26 +43,31 @@ export function releaseProblems({ out, info, allowAnalytics = false }) {
       "build/build-info.json is missing: run `pnpm build` (it is written by scripts/postbuild.mjs) before checking.",
     );
   else {
-    // The model URL: without it the page says the model is "not published yet" and no job can run.
-    const url = info.modelUrl;
-    let u = null;
-    try {
-      u = new URL(url ?? "");
-    } catch {
-      /* reported below */
+    // The model manifest (D-053): an https URL at a pinned tag or commit, and its sha256 pinned in the build.
+    if (info.localTest)
+      problems.push(
+        "This is a LOCAL TEST build (VITE_MODEL_LOCAL_TEST=1, `pnpm release:local`): it reads the model from this machine. Never publish it.",
+      );
+    else {
+      if (!info.modelUrl)
+        problems.push(
+          "VITE_MODEL_MANIFEST_URL was not set when this was built: no model manifest URL is in it.",
+        );
+      else {
+        const why = manifestUrlProblem(info.modelUrl);
+        if (why) problems.push(`VITE_MODEL_MANIFEST_URL: ${why}`);
+        else if (
+          /^(localhost|127\.|\[?::1)/.test(new URL(info.modelUrl).hostname)
+        )
+          problems.push(
+            "VITE_MODEL_MANIFEST_URL points at this machine, not at a public host.",
+          );
+      }
+      if (!/^[0-9a-f]{64}$/.test(info.modelManifestSha256 ?? ""))
+        problems.push(
+          "VITE_MODEL_MANIFEST_SHA256 was not set (64 hex characters): the build must pin the exact manifest file.",
+        );
     }
-    if (!url)
-      problems.push(
-        "VITE_MODEL_URL was not set when this was built: no model URL is in it.",
-      );
-    else if (!u || u.protocol !== "https:")
-      problems.push(
-        `VITE_MODEL_URL must be an https URL (it was built with ${JSON.stringify(url)}).`,
-      );
-    else if (/^(localhost|127\.|\[?::1)/.test(u.hostname))
-      problems.push(
-        `VITE_MODEL_URL points at this machine (${u.hostname}), not at a public host.`,
-      );
     if (info.scripted)
       problems.push(
         "This is a scripted build (VITE_SCRIPTED_POLICY=1): the model is replaced by replies from the page. Never publish it.",

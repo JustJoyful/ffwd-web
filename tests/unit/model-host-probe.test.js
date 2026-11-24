@@ -1,10 +1,9 @@
 // The first-visit path choice in the worker host (app/model/model-host.js, init with probe) against FAKE engines:
 // canary pass and fail, the benchmark pick, one engine alive at a time with the loser freed, and exit mid-check.
 import { describe, expect, test } from "vitest";
-import reference from "../../app/model/canary-reference.json";
 import { createModelHost } from "../../app/model/model-host.js";
 import { validateWorkerMessage } from "../../app/model/contract.js";
-import { MODEL } from "../../app/model/config.js";
+import { MODEL } from "./model-fixture.js";
 
 const URL_ = "http://localhost/m.gguf";
 const INIT = {
@@ -17,8 +16,9 @@ const INIT = {
   kvCache: "q8_0",
   threads: 3,
   probe: true,
+  canary: MODEL.canary,
 };
-const GOOD = reference.tokens;
+const GOOD = MODEL.canary.tokens;
 const GARBAGE = [1, 2, 3];
 // timings per path: [prompt tok/s, generation tok/s]
 const SPEED = { webgpu: [500, 60], cpu: [58, 36] };
@@ -63,7 +63,7 @@ function make({ webgpu = "good", speed = SPEED, onCompletion } = {}) {
       tokenize: async (t) =>
         t === "WEBGPU_TEXT" ? (webgpu === "good" ? GOOD : GARBAGE) : GOOD,
       createCompletion: async (o) => {
-        const isCanary = o.prompt === reference.prompt;
+        const isCanary = o.prompt === MODEL.canary.prompt;
         log.push(`${isCanary ? "canary" : "bench"}#${id}:${path}`);
         onCompletion?.(id, path, isCanary);
         const [pp, gen] = speed[path];

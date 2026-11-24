@@ -4,9 +4,7 @@
 // for prompts of about 880 tokens and longer, in every configuration tried, while the same file on an NVIDIA card scores
 // 96/100 parity (reports/2026-11-24-overnight/MORNING_REPORT.md section 2, reports/2026-11-24-canary). A path that
 // computes the wrong thing must never be used, so a first visit runs the real first-turn prompt greedily and compares the
-// first 20 token ids with what native llama.cpp b12032 produced (canary-reference.json, made by
-// scripts/make-canary-reference.mjs). Prefill (a long batch) and decode (one token at a time) are both exercised.
-import reference from "./canary-reference.json";
+// first 20 token ids with what native llama.cpp b12032 produced (the canary block of the release manifest ffwd-model.json: prompt re-rendered by manifest.js, ids and pass rule from it). Prefill (a long batch) and decode (one token at a time) are both exercised.
 import { PATH_CHOICE } from "./config.js";
 
 /** How many leading ids of `got` equal `want`. */
@@ -17,22 +15,18 @@ export function matchedPrefix(got, want) {
 }
 
 /**
- * Run the canary on a loaded engine. The reply is tokenised the way the reference was (special tokens NOT parsed;
- * the script checks the reference survives that round trip), because the engine's completion does not return ids.
- * A reference made for another model cannot judge this one: that counts as a failure (never trust an unchecked path).
+ * Run the canary on a loaded engine. The reply is tokenised the way the reference was (special tokens NOT parsed), because
+ * the engine's completion does not return ids. The reference is for the model file the manifest shipped (manifest.js checks
+ * that), so a canary for another file never reaches here.
  * @param {{ createCompletion: Function, tokenize: Function }} w
- * @param {{ modelSha256: string, ref?: typeof reference, minMatch?: number }} o
+ * @param {{ prompt: string, tokens: number[], minMatch: number }} ref from the manifest (toModelConfig().canary)
  * @returns {Promise<{ pass: boolean, matched: number, of: number }>}
  */
-export async function runCanary(
-  w,
-  { modelSha256, ref = reference, minMatch = PATH_CHOICE.canaryMinMatch },
-) {
+export async function runCanary(w, ref) {
   const of = ref.tokens.length;
-  if (ref.model.sha256 !== modelSha256) return { pass: false, matched: 0, of };
   const r = await w.createCompletion({
     prompt: ref.prompt,
-    max_tokens: ref.maxTokens,
+    max_tokens: of,
     temperature: 0, // greedy, like the reference
     seed: 1,
   });
@@ -41,7 +35,7 @@ export async function runCanary(
     parseSpecial: false,
   });
   const matched = matchedPrefix(ids, ref.tokens);
-  return { pass: matched >= minMatch, matched, of };
+  return { pass: matched >= ref.minMatch, matched, of };
 }
 
 /**
@@ -49,11 +43,11 @@ export async function runCanary(
  * prompt starts with another role than the canary's, so almost nothing of it is cached (promptN counts only new tokens).
  * Returns null when the runtime gave no usable timings: the caller then simply has no number for this path.
  * @param {{ createCompletion: Function }} w
- * @param {{ ref?: typeof reference }} [o]
+ * @param {string} text any long text: the canary prompt is used (it is in the worker anyway)
  * @returns {Promise<import("./contract.js").Bench | null>}
  */
-export async function runBenchmark(w, { ref = reference } = {}) {
-  const body = ref.prompt.slice(ref.prompt.indexOf("\n") + 1);
+export async function runBenchmark(w, text) {
+  const body = text.slice(text.indexOf("\n") + 1);
   const r = await w.createCompletion({
     prompt: `<|im_start|>user\n${body.slice(0, PATH_CHOICE.benchPromptChars)}<|im_end|>\n<|im_start|>assistant\n`,
     max_tokens: PATH_CHOICE.benchGenTokens,

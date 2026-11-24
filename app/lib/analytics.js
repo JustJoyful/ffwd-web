@@ -21,7 +21,6 @@ import {
   SECONDS_BUCKETS,
   SIZE_BUCKETS,
 } from "./buckets.js";
-import { MODEL } from "../model/config.js";
 
 /** Event name to the property keys it may carry: exactly the table in ARCHITECTURE §9. The privacy page prints this. */
 export const EVENTS = {
@@ -70,7 +69,8 @@ export const TRANSPORT_KEYS = [
 // Every string a call site sends is one of these words (review S7); the bucket lists are the ones lib/buckets.js returns.
 const ENUMS = {
   landing_page: ["home", "chores", "privacy", "requirements", "app", "other"],
-  model_version: [MODEL.version],
+  // from the release manifest at run time (name-MAJOR.MINOR.PATCH), so a pattern, not a list; anything else is "other"
+  model_version: /^ffwd-[0-9a-z.]+-\d+\.\d+\.\d+$/,
   ms: [...LOAD_BUCKETS, "unknown"],
   input_size_bucket: [...SIZE_BUCKETS, "unknown"],
   n_files_bucket: [...COUNT_BUCKETS, "unknown"],
@@ -87,7 +87,9 @@ const ENUMS = {
 const HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 const FAMILIES = Array.from({ length: 12 }, (_, i) => `F${i + 1}`);
 
-const inList = (list, v) => typeof v === "string" && list.includes(v);
+const inList = (list, v) =>
+  typeof v === "string" &&
+  (list instanceof RegExp ? list.test(v) : list.includes(v));
 
 /**
  * @param {string} event

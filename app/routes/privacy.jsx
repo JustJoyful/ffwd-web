@@ -3,7 +3,7 @@ import "../styles/pages.css";
 import { SiteFooter, SiteNav } from "../components/site/Shell.jsx";
 import { ANALYTICS_PERSISTENCE, RESPECT_DNT_GPC } from "../config.js";
 import { EVENTS, TRANSPORT_KEYS } from "../lib/analytics.js";
-import { MODEL, PATH_CHOICE, modelHost } from "../model/config.js";
+import { PATH_CHOICE, modelHost } from "../model/config.js";
 
 // COPY FOR OWNER REVIEW. The ledger table and the "How to check" text come from COPY_PAGE.md section 3. The event
 // list is printed from EVENTS (app/lib/analytics.js), the same object the code sends from, so the page and the code
@@ -228,8 +228,7 @@ export default function Privacy() {
           <section id="model-download" aria-labelledby="dl-h">
             <h2 id="dl-h">Where the model comes from</h2>
             <p className="prose">
-              The model file ({Math.round(MODEL.bytes / 1e6)} MB) is downloaded
-              once, from{" "}
+              The model file is downloaded once, from{" "}
               {modelHost() ? <code>{modelHost()}</code> : "the model host"}.
               That server sees your IP address and your browser type when you
               download it, as any website does. ffwd sends it no video, no text

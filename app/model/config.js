@@ -1,23 +1,30 @@
-// The model artifact and runtime settings (D-050, D-051). ONE source: the worker, the client, the loader and analytics
-// read these, nothing else hard-codes them. The values are those of the owner-confirmed configuration.
-export const MODEL = {
-  version: "agent-v0.1-0.6b-q5_k_m",
-  file: "grpo-m3-ckpt60-q5_k_m.gguf",
-  bytes: 444411456,
-  sha256: "bbf439b749c02c04b5227ab93fb1430263a7c567c15552b6e12ae3836cde1e11",
-  nCtx: 8192,
-  kvCache: "q8_0",
-  maxTokens: 512,
-};
+import pin from "../../protocol/PIN.json";
 
-// Where the file comes from. The public Hugging Face repo and the R2 fallback do not exist yet (the DeepSeek terms
-// review comes first), so there is NO production URL: a build gets one from VITE_MODEL_URL (a localhost URL in
-// development and in the real-model smoke test), and without it the loader says the model is not published yet.
-export const modelUrl = () => import.meta.env?.VITE_MODEL_URL || null;
-/** The host the model file comes from (the privacy page names it), or null when no URL is set. */
+// What the app is BUILT FOR (D-053). The model itself (file, size, sha256, context, KV cache, token cap, canary) is not
+// here: it is read at run time from the release manifest ffwd-model.json (manifest.js) and refused when it does not
+// match these two values. ONE source each; nothing else hard-codes them.
+//   APP_VERSION: the version of this site, compared with the manifest's min_app_version. It is a constant, not
+//     package.json's "version" (this repo is private and its package.json version is not a release number); raise it by
+//     hand when a release needs a newer app, and say so in DECISIONS.md.
+//   PROTOCOL_VERSION: the protocol this site was synced to, read from protocol/PIN.json (scripts/sync-protocol.mjs), so a
+//     sync that bumps the protocol changes what the site accepts without a second edit.
+export const APP_VERSION = "1.0.0";
+export const PROTOCOL_VERSION = pin.protocol_version;
+
+// Where the manifest comes from: build-time values, so a build names ONE pinned model release.
+//   VITE_MODEL_MANIFEST_URL     https URL of ffwd-model.json at a pinned Hugging Face tag or commit (never main; see
+//                               manifest-url.js and `pnpm check:release`). Files are the manifest's relative paths
+//                               resolved against it.
+//   VITE_MODEL_MANIFEST_SHA256  sha256 of that exact manifest file: a host that swaps the manifest is refused.
+// Without a URL the page says the model is not published yet and downloads nothing.
+export const modelManifestUrl = () =>
+  import.meta.env?.VITE_MODEL_MANIFEST_URL || null;
+export const modelManifestSha256 = () =>
+  import.meta.env?.VITE_MODEL_MANIFEST_SHA256 || null;
+/** The host the model comes from (the privacy page names it), or null when no URL is set. */
 export const modelHost = () => {
   try {
-    return new URL(modelUrl() ?? "").hostname || null;
+    return new URL(modelManifestUrl() ?? "").hostname || null;
   } catch {
     return null;
   }
@@ -26,14 +33,13 @@ export const modelHost = () => {
 // Choosing the path (added 2026-11-24, owner decision): a canary on the graphics path, then a speed test, once per
 // device and model, remembered in localStorage. ONE source for the numbers; each has its reason next to it.
 export const PATH_CHOICE = {
-  // The canary prompt is the whole 1333-token system prompt plus a first user turn; the native llama.cpp b12032 reply's
-  // first 20 token ids are in canary-reference.json. MEASURED (reports/2026-11-24-canary/study, wllama 4.0.0, Chromium
+  // The canary prompt, its expected token ids and the pass rule (18 of 20) come from the release manifest's canary block.
+  // MEASURED (reports/2026-11-24-canary/study, wllama 4.0.0, Chromium
   // 159, Q5_K_M, q8_0 KV + flash attention): NVIDIA WebGPU 20/20 (two runs), processor 20/20, Intel gen-12lp WebGPU 0/20
   // (five runs, always garbage). Every one of the 20 greedy steps has a log-probability gap of at least 4.3 between the
-  // best and second-best token (stepMargins), so float noise cannot flip a correct path: it matches all 20. A pass
-  // needs 18 of 20: the 2 spare ids only absorb a flip late in the reply on some other device, while a broken path
-  // (0 of 20) is nowhere near. Wrong guesses cost speed (a good GPU marked broken runs on the processor), never output.
-  canaryMinMatch: 18,
+  // best and second-best token (stepMargins), so float noise cannot flip a correct path. A pass needs 18 of 20: the 2
+  // spare ids only absorb a flip late in the reply on some other device, while a broken path (0 of 20) is nowhere near.
+  // Wrong guesses cost speed (a good GPU marked broken runs on the processor), never output.
   // A device can pass the canary and still go wrong later (a driver update, a longer prompt): two replies in a row
   // that are not an action at all while on the graphics path switch to the processor and redo the step.
   invalidRepliesToSwitch: 2,

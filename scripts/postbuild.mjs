@@ -23,7 +23,7 @@ const env = {
 
 // The Content-Security-Policy names this build's hosts, so it is added to the copied _headers here, in the "/*" block.
 const csp = buildCsp({
-  modelUrl: env.VITE_MODEL_URL,
+  modelUrl: env.VITE_MODEL_MANIFEST_URL,
   analyticsHost: env.VITE_POSTHOG_KEY
     ? (env.VITE_POSTHOG_HOST ?? "https://us.i.posthog.com")
     : null,
@@ -44,7 +44,10 @@ writeFileSync(
   JSON.stringify(
     {
       scripted: env.VITE_SCRIPTED_POLICY === "1",
-      modelUrl: env.VITE_MODEL_URL || null,
+      modelUrl: env.VITE_MODEL_MANIFEST_URL || null,
+      modelManifestSha256: env.VITE_MODEL_MANIFEST_SHA256 || null,
+      // VITE_MODEL_LOCAL_TEST=1 is `pnpm release:local` (scripts/serve-release.mjs): the stamp makes check:release refuse it
+      localTest: env.VITE_MODEL_LOCAL_TEST === "1",
       posthogKey: Boolean(env.VITE_POSTHOG_KEY),
     },
     null,

@@ -2,11 +2,11 @@
 // unavailable storage), the first-visit probe, and the runtime safety net (two unreadable replies -> processor, same step).
 import { describe, expect, test } from "vitest";
 import { createModelClient } from "../../app/model/client.js";
-import { MODEL, PATH_CHOICE } from "../../app/model/config.js";
+import { PATH_CHOICE } from "../../app/model/config.js";
+import { MODEL } from "./model-fixture.js";
 import { cacheKey, readVerdict } from "../../app/model/path-cache.js";
 import { renderChat } from "../../app/agent/chat-template.js";
 
-const URL_ = "http://localhost/m.gguf";
 const NV = {
   vendor: "nvidia",
   architecture: "ampere",
@@ -85,7 +85,7 @@ function make({
       workers.push(w);
       return w;
     },
-    url: URL_,
+    config: MODEL,
     isCached: async () => true,
     getAdapter: async () => adapter,
     storage,

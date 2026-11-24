@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MODEL, modelUrl } from "../../model/config.js";
+import { modelManifestUrl } from "../../model/config.js";
 import { MODEL_ERROR_TEXT } from "../../model/contract.js";
 
 /** Bytes as the megabytes a person reads ("444 MB"), from the config's size, never a typed number. */
@@ -14,14 +14,14 @@ export const modelBlocks = (model) =>
  * cannot start. Ready renders nothing (ModelPathNotice already says where it runs). Only the static sentence is a live
  * region; the moving numbers sit in a progressbar so a screen reader is not read every byte.
  * @param {{ model: import("../../model/contract.js").ModelState, onConsent?: () => void, onDecline?: () => void, onRetry?: () => void, available?: boolean }} props
- *   `available` is false when this build has no model URL (config.js modelUrl), so there is nothing to offer.
+ *   `available` is false when this build has no model URL (config.js modelManifestUrl), so there is nothing to offer.
  */
 export default function ModelLoader({
   model,
   onConsent,
   onDecline,
   onRetry,
-  available = Boolean(modelUrl()),
+  available = Boolean(modelManifestUrl()),
 }) {
   const { phase } = model;
   // "Not now" is a choice the person made, not a phase of the model: kept here, forgotten once the phase moves on.
@@ -42,7 +42,7 @@ export default function ModelLoader({
     );
   }
   if (phase === "needsConsent") {
-    const size = mb(model.total || MODEL.bytes);
+    const size = mb(model.total);
     return (
       <div className="notice" role="status" data-phase="needsConsent">
         <p className="notice__t">
@@ -135,6 +135,9 @@ export default function ModelLoader({
             model.error?.message ??
             "The on-device model could not start."}
         </p>
+        {code === "model_refused" && model.error?.message && (
+          <p data-testid="model-refused-why">Why: {model.error.message}</p>
+        )}
         {code !== "out_of_memory" && (
           <button
             type="button"

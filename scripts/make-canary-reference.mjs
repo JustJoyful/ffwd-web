@@ -3,7 +3,7 @@
 //
 // Reproduce:  llama-server -m <the Q5_K_M gguf> -ngl 0 -c 4096 -np 1 --cache-ram 0 --port 8099   (llama.cpp b12032)
 //             node scripts/make-canary-reference.mjs --server http://127.0.0.1:8099 --gguf <the same file> [--dry]
-// The server must serve the SAME file as app/model/config.js (--gguf makes the script check its sha256) and the script
+// The server must serve the shipped file of the release manifest (--manifest) (--gguf makes the script check its sha256) and the script
 // records the llama.cpp build the server reports. CPU, not GPU, so the reference is the plain float path.
 //
 // The prompt is the real protocol (the agent chat template, the real system prompt, a real-shaped first user turn):
@@ -14,12 +14,26 @@ import { createHash } from "node:crypto";
 import { createReadStream, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderChat } from "../app/agent/chat-template.js";
-import { MODEL } from "../app/model/config.js";
 
 const arg = (k, d) => {
   const i = process.argv.indexOf(`--${k}`);
   return i < 0 ? d : process.argv[i + 1];
 };
+// The model file's name and sha256 come from the release manifest (D-053), not from app code.
+const MANIFEST = JSON.parse(
+  readFileSync(
+    resolve(
+      arg(
+        "manifest",
+        "../ffmpeg-agent/releases/ffwd-0.6b-v1.0.0/ffwd-model.json",
+      ),
+    ),
+    "utf8",
+  ),
+);
+const MODEL = (({ path, sha256 }) => ({ file: path, sha256 }))(
+  MANIFEST.files.find((f) => f.role === "shipped"),
+);
 const SERVER = arg("server", "http://127.0.0.1:8099");
 const GGUF = arg("gguf");
 const DRY = process.argv.includes("--dry");

@@ -1,7 +1,7 @@
 // The main-thread model client (app/model/client.js) against a fake worker: every path of the contract, no browser.
 import { describe, expect, test } from "vitest";
 import { createModelClient } from "../../app/model/client.js";
-import { MODEL } from "../../app/model/config.js";
+import { MODEL } from "./model-fixture.js";
 import { renderChat } from "../../app/agent/chat-template.js";
 
 const URL_ = "http://localhost/m.gguf";
@@ -81,7 +81,8 @@ function make({ cached = false, url = URL_, ...over } = {}) {
       workers.push(w);
       return w;
     },
-    url,
+    config: url ? MODEL : null,
+    manifestUrl: url,
     isCached: async () => cached,
     getAdapter: async () => ADAPTER, // a real graphics adapter, unless a test says otherwise
     storage: memoryStorage(),
@@ -130,6 +131,7 @@ describe("cached model (warm start)", () => {
         kvCache: MODEL.kvCache,
         threads: 4,
         probe: true, // no stored verdict yet
+        canary: MODEL.canary,
       },
     ]);
     workers[0].ready({ path: "cpu", loadMs: 950 });

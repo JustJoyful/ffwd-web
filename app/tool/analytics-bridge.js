@@ -11,7 +11,6 @@ import {
   bucketSeconds,
   bucketSize,
 } from "../lib/buckets.js";
-import { MODEL } from "../model/config.js";
 
 const FINISHED = ["done", "failed", "unsupported", "awaitingRequest"];
 // `-c copy` or `-c:v copy` leaves the picture as it was; anything else re-encodes it.
@@ -31,13 +30,13 @@ function bindModelAnalytics(model, track) {
     if (!started && ["downloading", "loading"].includes(s.phase)) {
       started = true;
       track("model_load_started", {
-        model_version: MODEL.version,
+        model_version: model.getConfig?.()?.version ?? "unknown",
         cache_hit: s.cached === true,
       });
     } else if (!completed && s.phase === "ready") {
       completed = true;
       track("model_load_completed", {
-        model_version: MODEL.version,
+        model_version: model.getConfig?.()?.version ?? "unknown",
         cache_hit: s.cached === true,
         ms: bucketLoadMs(s.loadMs),
         // coarse words only: where the model runs and what the graphics check said (never the adapter or the speeds)

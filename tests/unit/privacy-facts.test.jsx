@@ -22,14 +22,17 @@ const text = () => {
 
 describe("the privacy page", () => {
   test("names the model host (from the build's model URL) and says it sees the IP address", () => {
-    vi.stubEnv("VITE_MODEL_URL", "https://models.example.org/x/m.gguf");
+    vi.stubEnv(
+      "VITE_MODEL_MANIFEST_URL",
+      "https://models.example.org/x/m.gguf",
+    );
     const t = text();
     expect(t).toMatch(/downloaded once, from models\.example\.org/);
     expect(t).toMatch(/That server sees your IP address/);
     expect(t).toMatch(/no video, no text and no file names/);
   });
   test("without a model URL it still says a model host sees the IP, and invents no host name", () => {
-    vi.stubEnv("VITE_MODEL_URL", "");
+    vi.stubEnv("VITE_MODEL_MANIFEST_URL", "");
     const t = text();
     expect(t).toMatch(/from the model host/);
     expect(t).toMatch(/sees your IP address/);

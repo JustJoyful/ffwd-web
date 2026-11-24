@@ -1,7 +1,8 @@
 // The canary and the speed test (app/model/canary.js) against FAKE engines, and the reference file's own invariants.
 import { describe, expect, test } from "vitest";
 import reference from "../../app/model/canary-reference.json";
-import { MODEL, PATH_CHOICE } from "../../app/model/config.js";
+import { PATH_CHOICE } from "../../app/model/config.js";
+import { MODEL } from "./model-fixture.js";
 import {
   matchedPrefix,
   pickPath,
@@ -10,7 +11,7 @@ import {
   stepSeconds,
 } from "../../app/model/canary.js";
 
-const SHA = MODEL.sha256;
+const REF = MODEL.canary; // from the release manifest, as the app gets it
 /** An engine whose reply tokenises to `ids` (the canary compares ids, so the fake maps text -> ids through a table). */
 const engine = (ids, over = {}) => ({
   asked: [],
@@ -50,10 +51,8 @@ describe("the reference file", () => {
     expect(Math.min(...reference.stepMargins)).toBeGreaterThan(4);
   });
   test("the match rule leaves room for a late flip but is nowhere near a broken path", () => {
-    expect(PATH_CHOICE.canaryMinMatch).toBeLessThanOrEqual(reference.maxTokens);
-    expect(PATH_CHOICE.canaryMinMatch).toBeGreaterThanOrEqual(
-      reference.maxTokens - 3,
-    );
+    expect(REF.minMatch).toBeLessThanOrEqual(reference.maxTokens);
+    expect(REF.minMatch).toBeGreaterThanOrEqual(reference.maxTokens - 3);
   });
 });
 
@@ -72,12 +71,12 @@ describe("matchedPrefix", () => {
 
 describe("runCanary", () => {
   test("pass: the greedy reply has the reference ids; the prompt and settings are the reference's", async () => {
-    const w = engine([...reference.tokens]);
-    const r = await runCanary(w, { modelSha256: SHA });
+    const w = engine([...REF.tokens]);
+    const r = await runCanary(w, REF);
     expect(r).toEqual({ pass: true, matched: 20, of: 20 });
     expect(w.asked[0]).toMatchObject({
-      prompt: reference.prompt,
-      max_tokens: reference.maxTokens,
+      prompt: REF.prompt,
+      max_tokens: REF.tokens.length,
       temperature: 0,
     });
     // ids are taken from the TEXT with special tokens NOT parsed, the way the reference was checked
@@ -85,23 +84,13 @@ describe("runCanary", () => {
   });
   test("fail: the Intel iGPU's garbage matches nothing", async () => {
     const garbage = [27700, 27700, 27700, 27700]; // a repeated word, as seen on the iGPU
-    const r = await runCanary(engine(garbage), { modelSha256: SHA });
+    const r = await runCanary(engine(garbage), REF);
     expect(r).toEqual({ pass: false, matched: 0, of: 20 });
   });
   test("the threshold: 18 of 20 passes, 17 does not", async () => {
-    const at = (n) => [...reference.tokens.slice(0, n), -1, -1, -1];
-    expect((await runCanary(engine(at(18)), { modelSha256: SHA })).pass).toBe(
-      true,
-    );
-    expect((await runCanary(engine(at(17)), { modelSha256: SHA })).pass).toBe(
-      false,
-    );
-  });
-  test("a reference made for another model cannot vouch for this one: never trusted", async () => {
-    const r = await runCanary(engine([...reference.tokens]), {
-      modelSha256: "0".repeat(64),
-    });
-    expect(r.pass).toBe(false);
+    const at = (n) => [...REF.tokens.slice(0, n), -1, -1, -1];
+    expect((await runCanary(engine(at(18)), REF)).pass).toBe(true);
+    expect((await runCanary(engine(at(17)), REF)).pass).toBe(false);
   });
 });
 
@@ -114,7 +103,10 @@ describe("runBenchmark", () => {
   };
   test("tokens per second from the runtime's own timings", async () => {
     const w = engine([], { timings });
-    expect(await runBenchmark(w)).toEqual({ ppTokS: 200, genTokS: 30 });
+    expect(await runBenchmark(w, REF.prompt)).toEqual({
+      ppTokS: 200,
+      genTokS: 30,
+    });
     expect(w.asked[0]).toMatchObject({
       max_tokens: PATH_CHOICE.benchGenTokens,
       temperature: 0,
@@ -123,14 +115,14 @@ describe("runBenchmark", () => {
   });
   test("its prompt shares nothing with the canary's beyond the first special token, so nothing is served from the cache", async () => {
     const w = engine([], { timings });
-    await runBenchmark(w);
+    await runBenchmark(w, REF.prompt);
     const p = w.asked[0].prompt;
     expect(p.startsWith("<|im_start|>user\n")).toBe(true);
     expect(reference.prompt.startsWith("<|im_start|>system\n")).toBe(true);
     expect(p.length).toBeLessThan(PATH_CHOICE.benchPromptChars + 100);
   });
   test("no usable timings -> null, not a made-up number", async () => {
-    expect(await runBenchmark(engine([]))).toBeNull();
+    expect(await runBenchmark(engine([]), REF.prompt)).toBeNull();
     expect(
       await runBenchmark(
         engine([], {
@@ -141,6 +133,7 @@ describe("runBenchmark", () => {
             predicted_ms: 1,
           },
         }),
+        REF.prompt,
       ),
     ).toBeNull();
   });

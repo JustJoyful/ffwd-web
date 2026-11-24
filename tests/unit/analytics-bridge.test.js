@@ -44,6 +44,7 @@ function fakeModel(first = {}) {
   const subs = new Set();
   return {
     getState: () => s,
+    getConfig: () => ({ version: "ffwd-0.6b-1.0.0" }),
     subscribe: (fn) => (subs.add(fn), () => subs.delete(fn)),
     set(next) {
       s = { ...s, ...next };
@@ -87,12 +88,12 @@ describe("model_load events", () => {
     expect(track.mock.calls).toEqual([
       [
         "model_load_started",
-        { model_version: "agent-v0.1-0.6b-q5_k_m", cache_hit: false },
+        { model_version: "ffwd-0.6b-1.0.0", cache_hit: false },
       ],
       [
         "model_load_completed",
         {
-          model_version: "agent-v0.1-0.6b-q5_k_m",
+          model_version: "ffwd-0.6b-1.0.0",
           cache_hit: false,
           ms: "5 to 15 s",
           model_path: "webgpu",

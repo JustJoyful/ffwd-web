@@ -88,13 +88,13 @@ describe("sanitize", () => {
     for (const event of ["model_load_started", "model_load_completed"])
       expect(
         sanitize(event, {
-          model_version: "agent-v0.1-0.6b-q5_k_m",
+          model_version: "ffwd-0.6b-1.0.0",
           cache_hit: true,
           ms: "2 to 5 s",
           ...junk,
         }),
       ).toEqual({
-        model_version: "agent-v0.1-0.6b-q5_k_m",
+        model_version: "ffwd-0.6b-1.0.0",
         cache_hit: true,
         ms: "2 to 5 s",
       });
@@ -206,7 +206,7 @@ describe("sanitize", () => {
 
   test("the real vocabularies pass: pages, buckets and the model version", async () => {
     const { sanitize } = await load();
-    const { MODEL } = await import("../../app/model/config.js");
+    const MODEL = { version: "ffwd-0.6b-1.0.0" };
     expect(sanitize("site_visit", { landing_page: "privacy" })).toEqual({
       landing_page: "privacy",
     });

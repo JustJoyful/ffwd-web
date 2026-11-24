@@ -20,7 +20,6 @@ import {
   validateWorkerMessage,
 } from "./contract.js";
 import { runBenchmark, runCanary, pickPath } from "./canary.js";
-import reference from "./canary-reference.json";
 import { createSha256 } from "./sha256.js";
 import { VERIFIED_FIELD, isVerified, verifiedMarker } from "./verified.js";
 
@@ -179,7 +178,7 @@ export function createModelHost({
             await loadModel(w, msg, "webgpu", blob);
             alive();
             progress({ phase: "check", loaded: 0, total: 0, step: "canary" });
-            const c = await runCanary(w, { modelSha256: msg.sha256 });
+            const c = await runCanary(w, msg.canary);
             alive();
             canary = c.pass ? "pass" : "fail";
             matched = c.matched;
@@ -190,7 +189,7 @@ export function createModelHost({
                 total: 0,
                 step: "benchmark",
               });
-              const b = await runBenchmark(w);
+              const b = await runBenchmark(w, msg.canary.prompt);
               if (b) bench.webgpu = b;
             }
           } catch (e) {
@@ -205,7 +204,7 @@ export function createModelHost({
         progress({ phase: "check", loaded: 0, total: 0, step: "benchmark" });
         await loadModel(w, msg, "cpu", blob);
         alive();
-        const b = await runBenchmark(w);
+        const b = await runBenchmark(w, msg.canary.prompt);
         if (b) bench.cpu = b;
         alive();
         path = canary === "pass" ? pickPath(bench) : "cpu";
@@ -213,7 +212,7 @@ export function createModelHost({
           await swap();
           await loadModel(w, msg, "webgpu", blob);
         }
-        selection = { canary, matched, of: reference.tokens.length, bench };
+        selection = { canary, matched, of: msg.canary.tokens.length, bench };
       }
       alive();
       ready = { nCtx: w.getLoadedContextInfo()?.n_ctx ?? msg.nCtx };

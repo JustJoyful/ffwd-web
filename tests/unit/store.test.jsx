@@ -213,6 +213,7 @@ describe("module boundaries", () => {
 // (analytics) code against exactly this shape.
 const { createToolStore, stubModel } = await import("../../app/tool/store.js");
 const { createModelClient } = await import("../../app/model/client.js");
+const { MODEL } = await import("./model-fixture.js");
 const { checkCapability } = await import("../../app/lib/capability.js");
 
 const fakeModel = () => ({
@@ -348,7 +349,7 @@ describe("model path from the capability check", () => {
   const run = async (adapter) => {
     const workers = [];
     const model = createModelClient({
-      url: "http://localhost/m.gguf",
+      config: MODEL,
       isCached: async () => true,
       getAdapter: async () => adapter, // the path choice reads the adapter again (path-cache key); jsdom has none
       storage: { getItem: () => null, setItem() {} },
