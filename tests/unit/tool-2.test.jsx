@@ -307,7 +307,7 @@ describe("saveFile and DownloadButton", () => {
     const click = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => {});
-    expect(await saveFile(blob, "a-ffwd.mp4")).toBe(true);
+    expect(await saveFile(blob, "a-ffwd.mp4")).toBe("started");
     expect(click).toHaveBeenCalledTimes(1);
   });
 

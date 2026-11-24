@@ -1,11 +1,12 @@
 // Hand the finished file to the person. The File System Access API (a real save dialog) where the browser has it,
-// otherwise a click on an <a download>. Resolves true when a file was written or handed over, false when the person
-// closed the dialog; it never throws for that.
+// otherwise a click on an <a download>. Resolves true when a file was written through the dialog, "started" when the
+// download link was clicked (a browser may still block it and nothing can detect that, so it is never called "saved"),
+// false when the person closed the dialog. It throws when the file could not be handed over at all.
 
 /**
  * @param {Blob} blob
  * @param {string} name suggested file name
- * @returns {Promise<boolean>}
+ * @returns {Promise<boolean | "started">}
  */
 export async function saveFile(blob, name) {
   if (typeof globalThis.showSaveFilePicker === "function") {
@@ -31,5 +32,5 @@ export async function saveFile(blob, name) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  return true;
+  return "started";
 }

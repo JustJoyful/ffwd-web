@@ -175,7 +175,10 @@ export default function App() {
 
   // What the person downloads: the output of the passing run, read out of the ffmpeg worker when the job is done.
   const passing = state.history.findLast((r) => r.passed);
-  const outHandle = name === "done" ? passing?.outputs?.out1 : null;
+  // The first output the spec asked for (its id is not always out1); a job with no single file has no handle.
+  const outId = state.spec?.outputs?.[0]?.id ?? "out1";
+  const outHandle =
+    name === "done" ? (passing?.outputs?.[outId] ?? null) : null;
   const container = state.spec?.outputs?.[0]?.container || "mp4";
   const outName = `${stem(file?.name ?? "video")}-ffwd.${container}`;
   useEffect(() => {
@@ -198,6 +201,14 @@ export default function App() {
     };
   }, [outHandle, container, store]);
   const result = made?.handle === outHandle ? made : null;
+  // Success is only claimed with a file the person can get (review S10).
+  const fileState = !outHandle
+    ? "none"
+    : !result
+      ? "pending"
+      : result.blob
+        ? "ready"
+        : "failed";
 
   const chips =
     state.spec && input ? chipsFromSpec(state.spec, input.probe) : [];
@@ -401,7 +412,11 @@ export default function App() {
                   )}
                   {name === "done" && (
                     <p className="run__done" role="status">
-                      Done, every check passed
+                      {fileState === "ready"
+                        ? "Done, every check passed"
+                        : fileState === "pending"
+                          ? "Every check passed. Getting the file ready"
+                          : "Every check passed, but this result can't be saved as one file yet"}
                     </p>
                   )}
                   {name === "failed" && (
@@ -438,18 +453,18 @@ export default function App() {
                         name={outName}
                       />
                       <small>
-                        {result?.blob
+                        {fileState === "ready"
                           ? `${outName}, ${sizeText(result.blob.size)}`
-                          : result
-                            ? "This result can't be saved as one file yet"
-                            : "Getting the file ready"}
+                          : fileState === "pending"
+                            ? "Getting the file ready"
+                            : "This result can't be saved as one file yet"}
                       </small>
                     </div>
                     <CommandReveal
                       args={displayArgs(
                         passing.args,
                         { [INPUT_ID]: file?.name ?? "input" },
-                        { out1: outName },
+                        { [outId]: outName },
                       )}
                       chips={chips}
                     />
