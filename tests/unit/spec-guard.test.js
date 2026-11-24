@@ -3,7 +3,6 @@ import { looseningError, specBoundsError } from "../../app/agent/spec-guard.js";
 import { createMachine } from "../../app/agent/machine.js";
 import {
   SPEC_2MB,
-  act,
   fakeExecutor,
   fakeMeasure,
   policyOf,
