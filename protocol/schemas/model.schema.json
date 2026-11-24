@@ -23,11 +23,12 @@
         "required": ["path", "role", "format", "sha256", "size_bytes"],
         "properties": {
           "path": {"$ref": "#/$defs/relpath", "description": "Relative to the manifest's own URL or folder. Never an absolute URL."},
-          "role": {"enum": ["shipped", "evaluated", "adapter", "prompt", "template"], "description": "shipped = the file apps load; evaluated = the file of the headline test results; adapter = LoRA weights for re-merging."},
+          "role": {"enum": ["shipped", "evaluated", "weights", "adapter", "prompt", "template"], "description": "shipped = the file apps load; evaluated = the file of the headline test results; weights = a file of the merged fp16 Hugging Face model; adapter = LoRA weights for re-merging."},
           "format": {"enum": ["gguf", "safetensors", "json", "text", "jinja"]},
           "quant": {"type": "string"},
           "sha256": {"$ref": "#/$defs/sha256"},
-          "size_bytes": {"type": "integer", "minimum": 1}
+          "size_bytes": {"type": "integer", "minimum": 1},
+          "optional": {"type": "boolean", "description": "true: an extra a consumer may skip (the LoRA adapters). Absent means required. The package still lists it in SHA256SUMS."}
         }
       }
     },
