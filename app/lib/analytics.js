@@ -15,6 +15,13 @@ import {
   analyticsSettings,
 } from "../config.js";
 import { REASON_TEXT } from "./capability.js";
+import {
+  COUNT_BUCKETS,
+  LOAD_BUCKETS,
+  SECONDS_BUCKETS,
+  SIZE_BUCKETS,
+} from "./buckets.js";
+import { MODEL } from "../model/config.js";
 
 /** Event name to the property keys it may carry: exactly the table in ARCHITECTURE §9. The privacy page prints this. */
 export const EVENTS = {
@@ -46,13 +53,28 @@ export const EVENTS = {
   helper_handoff: ["mode"],
 };
 
-/** Keys PostHog needs to route an event; they carry no content. Kept by guardEvent, printed on the privacy page. */
-export const TRANSPORT_KEYS = ["token", "distinct_id"];
+/**
+ * Keys PostHog needs to route an event; they carry no content. Kept by guardEvent, printed on the privacy page.
+ * `$process_person_profile` is a boolean posthog-js sets to false (person_profiles: "identified_only") so the server does
+ * not create a person profile for the anonymous id; stripping it would have had the opposite effect.
+ */
+export const TRANSPORT_KEYS = [
+  "token",
+  "distinct_id",
+  "$process_person_profile",
+];
 
 // The fixed vocabulary of the fields that hold a category. A value outside it is sent as "other", never as itself.
 // category stays empty until the protocol gives `unsupported` and `ask_user` a category of their own: today they
 // carry the model's free-text sentence, which must not leave the page.
+// Every string a call site sends is one of these words (review S7); the bucket lists are the ones lib/buckets.js returns.
 const ENUMS = {
+  landing_page: ["home", "chores", "privacy", "requirements", "app", "other"],
+  model_version: [MODEL.version],
+  ms: [...LOAD_BUCKETS, "unknown"],
+  input_size_bucket: [...SIZE_BUCKETS, "unknown"],
+  n_files_bucket: [...COUNT_BUCKETS, "unknown"],
+  seconds_bucket: [...SECONDS_BUCKETS, "unknown"],
   fail_reason: Object.keys(REASON_TEXT),
   reason_category: ["run_budget", "turn_budget", "policy_error"],
   category: [],
@@ -60,6 +82,9 @@ const ENUMS = {
   model_path: ["webgpu", "cpu"],
   canary: ["pass", "fail", "skipped"],
 };
+// The one string that cannot be a fixed list: the referring site's domain (the bridge reduces it to a hostname). It must
+// still look like one, so a request or file name cannot ride in it.
+const HOSTNAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 const FAMILIES = Array.from({ length: 12 }, (_, i) => `F${i + 1}`);
 
 const inList = (list, v) => typeof v === "string" && list.includes(v);
@@ -80,11 +105,17 @@ export function sanitize(event, props = {}) {
     } else if (key === "families") {
       if (Array.isArray(v))
         out[key] = v.map((f) => (inList(FAMILIES, f) ? f : "other"));
+    } else if (key === "referrer_domain") {
+      if (
+        typeof v === "string" &&
+        v.length <= ANALYTICS_MAX_STRING &&
+        HOSTNAME.test(v)
+      )
+        out[key] = v;
     } else if (typeof v === "boolean") out[key] = v;
     else if (typeof v === "number") {
       if (Number.isFinite(v)) out[key] = v;
-    } else if (typeof v === "string" && v.length <= ANALYTICS_MAX_STRING)
-      out[key] = v;
+    }
   }
   return out;
 }
@@ -94,8 +125,16 @@ export function guardEvent(e) {
   const clean = e && sanitize(e.event, e.properties);
   if (!clean) return null;
   const properties = {};
-  for (const k of TRANSPORT_KEYS)
-    if (e.properties && k in e.properties) properties[k] = e.properties[k];
+  for (const k of TRANSPORT_KEYS) {
+    const v = e.properties?.[k];
+    // the person flag is only ever true or false; the other two are PostHog's own token and random id
+    if (
+      k === "$process_person_profile"
+        ? typeof v === "boolean"
+        : typeof v === "string"
+    )
+      properties[k] = v;
+  }
   return {
     uuid: e.uuid,
     event: e.event,

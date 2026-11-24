@@ -164,17 +164,76 @@ describe("sanitize", () => {
     });
   });
 
-  test("a 41-character string is never sent, 40 is", async () => {
+  test("a referrer domain must look like a hostname and fit in 40 characters", async () => {
     const { sanitize } = await load();
-    expect(sanitize("site_visit", { referrer_domain: "a".repeat(41) })).toEqual(
-      {},
-    );
-    expect(sanitize("site_visit", { referrer_domain: "a".repeat(40) })).toEqual(
-      { referrer_domain: "a".repeat(40) },
-    );
+    const ok = (v) => sanitize("site_visit", { referrer_domain: v });
+    expect(ok("news.example")).toEqual({ referrer_domain: "news.example" });
+    expect(ok("a".repeat(37) + ".io")).toEqual({
+      referrer_domain: "a".repeat(37) + ".io",
+    });
+    expect(ok("a".repeat(38) + ".io")).toEqual({}); // 41 characters
+    // a request or a file name is not a hostname, whatever its length
+    for (const bad of [
+      "trim the first 10 seconds",
+      "holiday",
+      "Holiday.MP4 ",
+      "a.b/c",
+      "https://x.test/app?ask=secret",
+      "me@example.com",
+      "",
+    ])
+      expect(ok(bad)).toEqual({});
   });
 
-  test("objects, null and non-finite numbers are dropped", async () => {
+  // Review S7: every other string key is a closed list, so free text of up to 40 characters cannot pass any of them.
+  test("a typed sentence in any category key is sent as 'other', never as itself", async () => {
+    const { sanitize } = await load();
+    const text = "trim the first 10 seconds of holiday.mp4"; // 39 characters
+    const cases = {
+      site_visit: ["landing_page"],
+      model_load_started: ["model_version", "ms"],
+      edit_started: ["input_size_bucket", "n_files_bucket"],
+      edit_completed: ["seconds_bucket", "model_version"],
+      capability_checked: ["fail_reason"],
+      edit_failed: ["reason_category"],
+      ask_user_shown: ["category"],
+      model_load_completed: ["model_path", "canary", "ms"],
+    };
+    for (const [event, keys] of Object.entries(cases))
+      for (const key of keys)
+        expect(sanitize(event, { [key]: text })).toEqual({ [key]: "other" });
+  });
+
+  test("the real vocabularies pass: pages, buckets and the model version", async () => {
+    const { sanitize } = await load();
+    const { MODEL } = await import("../../app/model/config.js");
+    expect(sanitize("site_visit", { landing_page: "privacy" })).toEqual({
+      landing_page: "privacy",
+    });
+    expect(
+      sanitize("edit_started", {
+        input_size_bucket: bucketSize(5e6),
+        n_files_bucket: bucketCount(1),
+      }),
+    ).toEqual({ input_size_bucket: "under 10 MB", n_files_bucket: "1" });
+    expect(
+      sanitize("edit_completed", {
+        seconds_bucket: bucketSeconds(20),
+        model_version: MODEL.version,
+      }),
+    ).toEqual({ seconds_bucket: "10 to 30 s", model_version: MODEL.version });
+    expect(
+      sanitize("model_load_completed", { ms: bucketLoadMs(3000) }),
+    ).toEqual({ ms: "2 to 5 s" });
+    expect(bucketSize(NaN)).toBe("unknown");
+    expect(
+      sanitize("edit_started", { input_size_bucket: bucketSize(NaN) }),
+    ).toEqual({
+      input_size_bucket: "unknown",
+    });
+  });
+
+  test("objects, null and non-finite numbers are dropped or reduced to 'other'", async () => {
     const { sanitize } = await load();
     expect(
       sanitize("edit_completed", {
@@ -183,7 +242,7 @@ describe("sanitize", () => {
         model_version: null,
         passed_check: undefined,
       }),
-    ).toEqual({});
+    ).toEqual({ seconds_bucket: "other" });
   });
 });
 
@@ -218,6 +277,30 @@ describe("guardEvent (the last gate inside PostHog)", () => {
     ]);
     expect(out.$set).toBeUndefined();
     expect(out.$set_once).toBeUndefined();
+  });
+
+  test("the person flag survives as a boolean only, so the server creates no profile for the anonymous id (review S7)", async () => {
+    const { guardEvent } = await load();
+    const ev = (props) =>
+      guardEvent({
+        event: "site_visit",
+        properties: {
+          token: "t",
+          distinct_id: "d",
+          landing_page: "home",
+          ...props,
+        },
+      });
+    expect(ev({ $process_person_profile: false }).properties).toMatchObject({
+      $process_person_profile: false,
+    });
+    // anything else in that slot, or a non-string id or token, is dropped
+    expect(ev({ $process_person_profile: "x" }).properties).not.toHaveProperty(
+      "$process_person_profile",
+    );
+    expect(ev({ distinct_id: { email: "x" } }).properties).not.toHaveProperty(
+      "distinct_id",
+    );
   });
 });
 

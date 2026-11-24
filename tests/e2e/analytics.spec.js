@@ -41,7 +41,7 @@ const ALLOWED = {
   helper_detected: ["mode"],
   helper_handoff: ["mode"],
 };
-const TRANSPORT = ["token", "distinct_id"];
+const TRANSPORT = ["token", "distinct_id", "$process_person_profile"];
 
 const SECRET_ASK = "zebra-secret-sentence about my holiday";
 
