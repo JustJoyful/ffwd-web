@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { createMachine } from "../agent/machine.js";
 import { scriptedPolicy } from "../agent/scripted-policy.js";
 import { createBrowserRuntime } from "../agent/browser-runtime.js";
+import { parseAction } from "../agent/actions.js";
 import { createModelClient } from "../model/client.js";
 import { initialModelState } from "../model/contract.js";
 import { checkCapability, readAdapter, readEnv } from "../lib/capability.js";
@@ -62,7 +63,13 @@ export function createToolStore({
   capability = realCapability,
 } = {}) {
   // An injected policy (tests) or a scripted build means no real model: the stub is ready and does nothing.
-  model ??= policy || scripted() ? stubModel(policy) : createModelClient();
+  model ??=
+    policy || scripted()
+      ? stubModel(policy)
+      : createModelClient({
+          // the runtime safety net: a reply that is not an action at all counts as unreadable (client.js)
+          isValidReply: (reply) => !("error" in parseAction(reply)),
+        });
   policy ??= defaultPolicy(model);
   let begun = false;
   const machine = createMachine({

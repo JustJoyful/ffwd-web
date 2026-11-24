@@ -4,7 +4,9 @@ import {
   MODEL_TURN_SECONDS,
   TYPICAL_MODEL_TURNS,
   checkCapability,
+  defaultCpuThreads,
   estimateWait,
+  memoryWarning,
   selectModelPath,
 } from "../../app/lib/capability.js";
 
@@ -24,6 +26,7 @@ describe("checkCapability", () => {
       reason: null,
       path: "webgpu",
       notice: null,
+      memoryWarning: false, // 8 GB is the recommended amount: no warning
     });
   });
   test.each([
@@ -52,6 +55,7 @@ describe("checkCapability", () => {
       reason: null,
       path: "cpu",
       notice: "no-webgpu",
+      memoryWarning: false,
     });
   });
   test("a scripted build (tests) has no model, so it claims no processor notice", () => {
@@ -139,7 +143,25 @@ describe("estimateWait", () => {
       firstStepSeconds: Math.ceil(t.first),
       laterStepSeconds: Math.ceil(t.next),
       jobModelSeconds: Math.ceil(t.first + (TYPICAL_MODEL_TURNS - 1) * t.next),
+      measured: false,
     });
+  });
+  // 2026-11-24: a computer's own speed test replaces the one-laptop numbers
+  test("with a measured speed it is computed from that speed, and says it was measured", () => {
+    // 100 tokens/s reading, 20 tokens/s writing: first step 1500/100 + 60/20 = 18 s, a later one 200/100 + 60/20 = 5 s
+    expect(estimateWait("cpu", { ppTokS: 100, genTokS: 20 })).toEqual({
+      firstStepSeconds: 18,
+      laterStepSeconds: 5,
+      jobModelSeconds: 28,
+      measured: true,
+    });
+  });
+  test("a faster measured computer waits less, and an unusable measurement falls back to the constants", () => {
+    const slow = estimateWait("cpu", { ppTokS: 20, genTokS: 5 });
+    const fast = estimateWait("cpu", { ppTokS: 200, genTokS: 50 });
+    expect(fast.firstStepSeconds).toBeLessThan(slow.firstStepSeconds);
+    expect(estimateWait("cpu", { ppTokS: 0, genTokS: 5 }).measured).toBe(false);
+    expect(estimateWait("cpu", null)).toEqual(estimateWait("cpu"));
   });
   test("the processor is slower than the graphics chip at every step", () => {
     const g = estimateWait("webgpu");
@@ -147,5 +169,46 @@ describe("estimateWait", () => {
     expect(c.firstStepSeconds).toBeGreaterThan(g.firstStepSeconds);
     expect(c.laterStepSeconds).toBeGreaterThan(g.laterStepSeconds);
     expect(c.jobModelSeconds).toBeGreaterThan(g.jobModelSeconds);
+  });
+});
+
+describe("memory: 4 GB is the minimum, 8 GB is recommended (owner decision, 24 Nov 2026)", () => {
+  test.each([
+    [undefined, false, true], // Firefox and Safari report nothing: no warning, not refused
+    [2, false, false],
+    [3.9, false, false],
+    [4, true, true],
+    [6, true, true],
+    [7.9, true, true],
+    [8, false, true], // navigator.deviceMemory is capped at 8, so 8 means "8 or more"
+  ])("reported memory %s: warning %s, runs %s", (deviceMemory, warn, runs) => {
+    expect(memoryWarning(deviceMemory)).toBe(warn);
+    const c = checkCapability({ ...GOOD, deviceMemory });
+    expect(c.ok).toBe(runs);
+    expect(c.memoryWarning).toBe(warn);
+  });
+  test("below the minimum it is refused as before, with no warning on top", () => {
+    expect(checkCapability({ ...GOOD, deviceMemory: 2 })).toMatchObject({
+      ok: false,
+      reason: "low-memory",
+      memoryWarning: false,
+    });
+  });
+});
+
+describe("defaultCpuThreads: min(4, max(1, floor(cores / 2)))", () => {
+  test.each([
+    [1, 1],
+    [2, 1],
+    [3, 1],
+    [4, 2],
+    [6, 3],
+    [8, 4],
+    [12, 4], // the measured laptop: 4 threads gave 36 tok/s, the default 6 gave 17
+    [32, 4],
+    [undefined, 1], // unknown core count: assume 2 cores
+    [0, 1],
+  ])("%s logical cores -> %s threads", (cores, threads) => {
+    expect(defaultCpuThreads(cores)).toBe(threads);
   });
 });

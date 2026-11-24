@@ -4,10 +4,27 @@
 // WebGPU is NOT required (owner decision, 23 Nov 2026, D-050): without it the model runs on the processor, which works
 // but is slower, so the person is told which path they are on and roughly how long a step takes (selectModelPath).
 
+import { PATH_CHOICE } from "../model/config.js";
+
 // shortcut: a proposal, not a measurement. Qwen3 0.6B q4f16 needs about 1.4 GB of GPU memory and ffmpeg.wasm up to
 // 2 GB, so under 4 GB of device RAM is refused. navigator.deviceMemory is rounded and capped (never above 8) and is
 // missing in Firefox and Safari, where an unknown value is let through. Revisit with real devices (Plan E).
 export const MIN_DEVICE_MEMORY_GB = 4;
+// Owner decision (24 Nov 2026): 8 GB is recommended, 4 GB is the minimum and runs with a warning. navigator.deviceMemory
+// is capped at 8, so a computer with more than 8 GB reads as 8; Firefox and Safari report nothing, which gets no warning.
+export const RECOMMENDED_DEVICE_MEMORY_GB = 8;
+/** True for a REPORTED memory from the minimum up to, not including, the recommended: runs, with a warning. */
+export const memoryWarning = (deviceMemoryGb) =>
+  deviceMemoryGb !== undefined &&
+  deviceMemoryGb >= MIN_DEVICE_MEMORY_GB &&
+  deviceMemoryGb < RECOMMENDED_DEVICE_MEMORY_GB;
+
+// Threads for the processor path. MEASURED (reports/2026-11-24-overnight, section 2): four P-core threads gave 36 tok/s on
+// a 12-thread hybrid CPU, wllama's own default of 6 gave 17. Half the logical cores, at most 4, at least 1: more threads
+// than that fight each other and the page for the same cores (hyper-threads and slow efficiency cores add nothing).
+/** @param {number | undefined} hardwareConcurrency navigator.hardwareConcurrency */
+export const defaultCpuThreads = (hardwareConcurrency) =>
+  Math.min(4, Math.max(1, Math.floor((hardwareConcurrency || 2) / 2)));
 const MOBILE_UA = /Android|iPhone|iPad|iPod|Mobile/i;
 
 // Model speed per path, in seconds per model turn (medians). MEASURED on one laptop (Intel i5-12450HX, NVIDIA RTX 3050
@@ -103,7 +120,7 @@ export async function readAdapter() {
 
 /**
  * @param {{ crossOriginIsolated?: boolean, gpu?: unknown, adapter?: unknown, deviceMemory?: number, userAgent?: string, scripted?: boolean }} [env]
- * @returns {{ ok: boolean, reason: null | CapabilityReason, path: ModelPath, notice: null | PathNotice }}
+ * @returns {{ ok: boolean, reason: null | CapabilityReason, path: ModelPath, notice: null | PathNotice, memoryWarning: boolean }}
  */
 export function checkCapability(env = readEnv()) {
   const reason = !env.crossOriginIsolated
@@ -118,22 +135,46 @@ export function checkCapability(env = readEnv()) {
   const route = env.scripted
     ? { path: "webgpu", notice: null }
     : selectModelPath({ gpu: env.gpu, adapter: env.adapter });
-  return { ok: reason === null, reason, ...route };
+  return {
+    ok: reason === null,
+    reason,
+    ...route,
+    memoryWarning: reason === null && memoryWarning(env.deviceMemory),
+  };
 }
 
 /**
- * How long the model takes, from the speed measured on one laptop (config.js MODEL_TURN_SECONDS). Seconds, rounded
- * up, for the first step and for a whole typical job's model time. The ffmpeg work comes on top and depends on the video.
+ * How long the model takes, in seconds rounded up: the first step, a later step, and a whole typical job's model time
+ * (the ffmpeg work comes on top and depends on the video). With `bench` (this computer's own measured speed, from the
+ * first-visit speed test) it is a calculation on that: the first step reads the whole prompt, later steps read little.
+ * Without one it falls back to the numbers measured on one laptop (MODEL_TURN_SECONDS), which are a floor, not a promise.
  * @param {ModelPath} path
+ * @param {{ ppTokS: number, genTokS: number } | null} [bench]
+ * @returns {{ firstStepSeconds: number, laterStepSeconds: number, jobModelSeconds: number, measured: boolean }}
  */
-export function estimateWait(path) {
-  const t = MODEL_TURN_SECONDS[path];
+export function estimateWait(path, bench) {
+  let first;
+  let next;
+  const measured = Boolean(bench && bench.ppTokS > 0 && bench.genTokS > 0);
+  if (measured) {
+    const secs = (s) =>
+      s.promptTokens / bench.ppTokS + s.genTokens / bench.genTokS;
+    first = secs(PATH_CHOICE.firstStep);
+    next = secs(PATH_CHOICE.step);
+  } else {
+    ({ first, next } = MODEL_TURN_SECONDS[path]);
+  }
   return {
-    firstStepSeconds: Math.ceil(t.first),
-    laterStepSeconds: Math.ceil(t.next),
-    jobModelSeconds: Math.ceil(t.first + (TYPICAL_MODEL_TURNS - 1) * t.next),
+    firstStepSeconds: Math.ceil(first),
+    laterStepSeconds: Math.ceil(next),
+    jobModelSeconds: Math.ceil(first + (TYPICAL_MODEL_TURNS - 1) * next),
+    measured,
   };
 }
+
+/** The warning for a computer that reports 4 GB up to, not including, 8 GB: it runs, but may struggle. */
+export const MEMORY_WARNING_TEXT =
+  "ffwd works best with 8 GB of memory or more, and your browser reports less. It will try, but large videos may fail or the page may run out of memory. Close other tabs and programs first.";
 
 /** What to tell the person, one plain sentence per reason (the CapabilityNotice component shows it; "no-webgpu" is shown as a notice, not a refusal). */
 export const REASON_TEXT = {

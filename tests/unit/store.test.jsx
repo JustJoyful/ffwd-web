@@ -350,6 +350,8 @@ describe("model path from the capability check", () => {
     const model = createModelClient({
       url: "http://localhost/m.gguf",
       isCached: async () => true,
+      getAdapter: async () => adapter, // the path choice reads the adapter again (path-cache key); jsdom has none
+      storage: { getItem: () => null, setItem() {} },
       workerFactory: () => {
         const w = {
           sent: [],

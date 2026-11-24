@@ -2,7 +2,11 @@
 // wires `post` to self.postMessage and `loadWllama` to the real runtime; the tests wire a fake. One host holds at most
 // one loaded model.
 //
-//   init      fetch the GGUF into the browser cache if it is not there, check its sha256 once, load it into wllama
+//   init      fetch the GGUF into the browser cache if it is not there, check its sha256 once, load it into wllama.
+//             With `probe` (a first visit on a graphics-capable device) it also picks the path: load the graphics engine,
+//             run the canary (canary.js) and a speed test, free it, load the processor engine, speed-test that, and keep
+//             the faster correct one (reloading the graphics engine if it won). Only ONE engine is alive at any time
+//             (low-memory devices), and the loser is always freed first.
 //   generate  greedy completion of a PLAIN-TEXT prompt (the main thread rendered it; no chat template in here)
 //   exit      free the model
 //
@@ -15,6 +19,8 @@ import {
   WORKER_OUT,
   validateWorkerMessage,
 } from "./contract.js";
+import { runBenchmark, runCanary, pickPath } from "./canary.js";
+import reference from "./canary-reference.json";
 import { createSha256 } from "./sha256.js";
 
 const typed = (code, message) => Object.assign(new Error(message), { code });
@@ -111,6 +117,17 @@ export function createModelHost({
     return !downloaded;
   }
 
+  /** The engine settings per path (the owner-confirmed configuration, config.js). `threads` is for the processor only. */
+  const loadModel = (w, msg, path) =>
+    w.loadModelFromUrl(msg.modelUrl, {
+      n_ctx: msg.nCtx,
+      n_gpu_layers: path === "webgpu" ? 999 : 0,
+      cache_type_k: msg.kvCache,
+      cache_type_v: msg.kvCache,
+      flash_attn: msg.kvCache === "q8_0", // a quantised V cache needs flash attention
+      ...(path === "cpu" && msg.threads ? { n_threads: msg.threads } : {}),
+    });
+
   async function init(msg) {
     if (wllama || starting) {
       throw typed("load_failed", "the model is already loaded or loading");
@@ -118,32 +135,86 @@ export function createModelHost({
     starting = true;
     const mine = epoch;
     const t0 = now();
-    let w = null;
+    let w = null; // the engine being loaded now (freed on any failure)
+    const alive = () => {
+      if (mine !== epoch) throw typed("aborted", "exit arrived while loading");
+    };
+    const progress = (p) => post({ type: WORKER_OUT.PROGRESS, ...p });
+    /** Free the current engine, then start a new unloaded one: two engines never exist together. */
+    const swap = async () => {
+      const old = w;
+      w = null;
+      wllama = null;
+      await free(old);
+      alive();
+      w = await loadWllama();
+      wllama = w;
+    };
     try {
       w = await loadWllama();
       wllama = w;
       const cached = await ensureFile(w, msg);
-      await w.loadModelFromUrl(msg.modelUrl, {
-        n_ctx: msg.nCtx,
-        n_gpu_layers: msg.path === "webgpu" ? 999 : 0,
-        cache_type_k: msg.kvCache,
-        cache_type_v: msg.kvCache,
-        flash_attn: msg.kvCache === "q8_0", // a quantised V cache needs flash attention
-        ...(msg.threads ? { n_threads: msg.threads } : {}),
-      });
-      if (mine !== epoch) throw typed("aborted", "exit arrived while loading");
+      let path = msg.path;
+      let selection;
+      if (!msg.probe) {
+        await loadModel(w, msg, path);
+      } else {
+        const bench = {};
+        let canary = "skipped";
+        let matched = 0;
+        if (msg.path === "webgpu") {
+          try {
+            await loadModel(w, msg, "webgpu");
+            alive();
+            progress({ phase: "check", loaded: 0, total: 0, step: "canary" });
+            const c = await runCanary(w, { modelSha256: msg.sha256 });
+            alive();
+            canary = c.pass ? "pass" : "fail";
+            matched = c.matched;
+            if (c.pass) {
+              progress({
+                phase: "check",
+                loaded: 0,
+                total: 0,
+                step: "benchmark",
+              });
+              const b = await runBenchmark(w);
+              if (b) bench.webgpu = b;
+            }
+          } catch (e) {
+            if (e?.code === "aborted" || mine !== epoch) throw e;
+            // shortcut: a graphics engine that cannot even start or finish the canary counts as broken for this
+            // device (cached for the verdict's lifetime); a one-off out-of-memory is treated the same. Revisit with real devices.
+            canary = "fail";
+            matched = 0;
+          }
+          await swap();
+        }
+        progress({ phase: "check", loaded: 0, total: 0, step: "benchmark" });
+        await loadModel(w, msg, "cpu");
+        alive();
+        const b = await runBenchmark(w);
+        if (b) bench.cpu = b;
+        alive();
+        path = canary === "pass" ? pickPath(bench) : "cpu";
+        if (path === "webgpu") {
+          await swap();
+          await loadModel(w, msg, "webgpu");
+        }
+        selection = { canary, matched, of: reference.tokens.length, bench };
+      }
+      alive();
       ready = { nCtx: w.getLoadedContextInfo()?.n_ctx ?? msg.nCtx };
-      post({
-        type: WORKER_OUT.PROGRESS,
+      progress({
         phase: "load",
         loaded: msg.bytes,
         total: msg.bytes,
       });
       const a =
-        msg.path === "webgpu" ? await readAdapter?.().catch(() => null) : null;
+        path === "webgpu" ? await readAdapter?.().catch(() => null) : null;
       post({
         type: WORKER_OUT.READY,
-        path: msg.path,
+        path,
         threads: w.getNumThreads(),
         nCtx: ready.nCtx,
         cached,
@@ -157,6 +228,7 @@ export function createModelHost({
               },
             }
           : {}),
+        ...(selection ? { selection } : {}),
       });
     } catch (e) {
       if (wllama === w) wllama = null;

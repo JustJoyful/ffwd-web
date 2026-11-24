@@ -17,7 +17,15 @@ const ALLOWED = {
   site_visit: ["landing_page", "referrer_domain"],
   capability_checked: ["webgpu", "fail_reason"],
   model_load_started: ["model_version", "cache_hit", "ms"],
-  model_load_completed: ["model_version", "cache_hit", "ms"],
+  // 2026-11-24 (owner decision): the coarse path and the graphics check's verdict, never adapter names or speeds. The
+  // model repo's ARCHITECTURE section 9 does not list these two yet.
+  model_load_completed: [
+    "model_version",
+    "cache_hit",
+    "ms",
+    "model_path",
+    "canary",
+  ],
   edit_started: ["families", "mode", "input_size_bucket", "n_files_bucket"],
   spec_confirmed: ["edited_by_user"],
   edit_completed: [

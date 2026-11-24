@@ -71,6 +71,13 @@ describe("sanitize", () => {
       prompt: "cut the first 3 seconds",
       file_name: "holiday.mp4",
       path: "webgpu",
+      adapter: "nvidia ampere",
+      gpu: "NVIDIA GeForce RTX 3050",
+      vendor: "nvidia",
+      architecture: "ampere",
+      description: "NVIDIA GeForce RTX 3050 Laptop GPU",
+      tokens_per_second: 36.3,
+      bench: { ppTokS: 58, genTokS: 36.3 },
       url: "https://x.test/app?ask=secret",
       model_url: "http://localhost:8080/grpo-m3-ckpt60-q5_k_m.gguf",
       modelUrl: "http://localhost:8080/grpo-m3-ckpt60-q5_k_m.gguf",
@@ -91,6 +98,27 @@ describe("sanitize", () => {
         cache_hit: true,
         ms: "2 to 5 s",
       });
+  });
+
+  test("model_load_completed keeps only the coarse path and canary words; anything else in those fields becomes other", async () => {
+    const { sanitize } = await load();
+    expect(
+      sanitize("model_load_completed", {
+        model_path: "cpu",
+        canary: "fail",
+        adapter: "intel gen-12lp",
+      }),
+    ).toEqual({ model_path: "cpu", canary: "fail" });
+    expect(
+      sanitize("model_load_completed", {
+        model_path: "NVIDIA GeForce RTX 3050",
+        canary: "intel gen-12lp",
+      }),
+    ).toEqual({ model_path: "other", canary: "other" });
+    // the started event never carries them
+    expect(
+      sanitize("model_load_started", { model_path: "cpu", canary: "pass" }),
+    ).toEqual({});
   });
 
   test('a free-text value in an enum field becomes "other"', async () => {
@@ -327,7 +355,13 @@ describe("EVENTS", () => {
       site_visit: ["landing_page", "referrer_domain"],
       capability_checked: ["webgpu", "fail_reason"],
       model_load_started: ["model_version", "cache_hit", "ms"],
-      model_load_completed: ["model_version", "cache_hit", "ms"],
+      model_load_completed: [
+        "model_version",
+        "cache_hit",
+        "ms",
+        "model_path",
+        "canary",
+      ],
       edit_started: ["families", "mode", "input_size_bucket", "n_files_bucket"],
       spec_confirmed: ["edited_by_user"],
       edit_completed: [

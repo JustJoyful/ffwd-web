@@ -7,14 +7,22 @@
 // person agrees to download `config.bytes` once (consent) or declines (the phase stays "needsConsent", and policy()
 // rejects with code "aborted"). No model URL at all (it is not published yet): phase "failed", load_failed, never a
 // fake download.
+//
+// Choosing the path (2026-11-24): the verdict for this device and model lives in localStorage (path-cache.js). No verdict:
+// the worker is started in "probe" mode (canary + speed test, see model-host.js) and the verdict it reports is stored.
+// A verdict: the worker just loads that path. Safety net: while on the graphics path, `invalidRepliesToSwitch` replies in a
+// row that are not an action at all (isValidReply, supplied by the store; the job machine knows nothing of this) mark the
+// graphics path broken, swap the worker for a processor one and answer the SAME step from the processor, so the job goes on.
 import { renderChat } from "../agent/chat-template.js";
-import { MODEL, modelUrl } from "./config.js";
+import { defaultCpuThreads, readAdapter } from "../lib/capability.js";
+import { MODEL, PATH_CHOICE, modelUrl } from "./config.js";
 import {
   WORKER_IN,
   WORKER_OUT,
   initialModelState,
   validateWorkerMessage,
 } from "./contract.js";
+import { cacheKey, readVerdict, writeVerdict } from "./path-cache.js";
 
 const NOT_PUBLISHED =
   "The on-device model is not published yet, so ffwd cannot run jobs in this build.";
@@ -41,7 +49,8 @@ const defaultWorkerFactory = () =>
   new Worker(new URL("./model.worker.js", import.meta.url), { type: "module" });
 
 /**
- * @param {{ workerFactory?: () => { postMessage: (m: object) => void, terminate: () => void, onmessage: ((e: { data: any }) => void) | null, onerror: ((e: any) => void) | null }, config?: typeof MODEL, url?: string | null, getPath?: () => "webgpu" | "cpu", isCached?: (url: string, config: typeof MODEL) => Promise<boolean> }} [opts]
+ * @param {{ workerFactory?: () => { postMessage: (m: object) => void, terminate: () => void, onmessage: ((e: { data: any }) => void) | null, onerror: ((e: any) => void) | null }, config?: typeof MODEL, url?: string | null, getPath?: () => "webgpu" | "cpu", isCached?: (url: string, config: typeof MODEL) => Promise<boolean>, getAdapter?: typeof readAdapter, storage?: Storage, threads?: number, isValidReply?: ((reply: string) => boolean) | null, now?: () => number }} [opts]
+ *   getAdapter / storage / threads / now exist for the tests; isValidReply switches the runtime safety net on.
  */
 export function createModelClient({
   workerFactory = defaultWorkerFactory,
@@ -49,6 +58,11 @@ export function createModelClient({
   url = modelUrl(),
   getPath,
   isCached = defaultIsCached,
+  getAdapter = readAdapter,
+  storage,
+  threads = defaultCpuThreads(globalThis.navigator?.hardwareConcurrency),
+  isValidReply = null,
+  now = Date.now,
 } = {}) {
   let state = initialModelState();
   const listeners = new Set();
@@ -61,6 +75,12 @@ export function createModelClient({
   let seq = 0;
   let pending = null; // { id, resolve, reject }: the one generate in flight
   let chain = Promise.resolve(); // policy calls run one at a time
+  let key = null; // the verdict's storage key (this adapter + this model)
+  let plan = { path: "cpu", probe: false }; // what the worker is asked to do
+  let invalidRun = 0; // unreadable replies in a row on the graphics path
+  let switched = false; // the safety net moved this page to the processor
+  const invalidReplies = new Set(); // their texts, taken out of the conversation after the switch
+  const store = { storage, now };
 
   const emit = () => [...listeners].forEach((fn) => fn(state));
   const set = (patch) => {
@@ -104,9 +124,36 @@ export function createModelClient({
       sha256: config.sha256,
       bytes: config.bytes,
       nCtx: config.nCtx,
-      path,
+      path: plan.path,
       kvCache: config.kvCache,
+      threads,
+      ...(plan.probe ? { probe: true } : {}),
     });
+  }
+
+  /**
+   * Which path to ask for: a stored verdict for this adapter and model is used as it is; without one, a device with a real
+   * adapter is probed (canary and speed test in the worker) and any other device only gets its processor speed measured.
+   */
+  async function decidePlan() {
+    const usable = path === "webgpu";
+    const adapter = usable ? await getAdapter().catch(() => null) : null;
+    const real = Boolean(adapter) && adapter.isFallbackAdapter !== true;
+    key = cacheKey(real ? adapter : null, config.sha256);
+    const v = readVerdict(key, store);
+    plan = v
+      ? { path: v.path, probe: false }
+      : { path: real ? "webgpu" : "cpu", probe: true };
+    // Quietly: the state is announced with the next change (needsConsent, loading), not once per detail.
+    state = {
+      ...state,
+      // with a stored verdict the path is known before the load: the notice must not show the capability guess next to
+      // the verdict's speed (it showed "graphics chip" with the processor's numbers)
+      path: v ? v.path : state.path,
+      canary: v?.canary ?? null,
+      fallback: v?.why ?? null,
+      bench: v?.bench[v.path] ?? null,
+    };
   }
 
   /** The worker died or sent nonsense: end whatever was waiting on it. */
@@ -131,12 +178,31 @@ export function createModelClient({
     switch (m.type) {
       case WORKER_OUT.PROGRESS:
         // The first "load" message means the file is in (downloaded, or it was cached) and the runtime is starting.
-        return set({
-          phase: m.phase === "download" ? "downloading" : "loading",
-          loaded: m.loaded,
-          total: m.total,
-        });
-      case WORKER_OUT.READY:
+        // "check" is the first-visit canary and speed test: still "loading" as far as the phase goes.
+        return m.phase === "check"
+          ? set({ phase: "loading", check: m.step ?? "canary" })
+          : set({
+              phase: m.phase === "download" ? "downloading" : "loading",
+              loaded: m.loaded,
+              total: m.total,
+              check: null,
+            });
+      case WORKER_OUT.READY: {
+        const sel = m.selection;
+        if (sel) {
+          // A first-visit verdict: remember it (best effort), so the next visit loads this path and nothing else.
+          writeVerdict(
+            key,
+            {
+              webgpu: { pass: "ok", fail: "broken", skipped: null }[sel.canary],
+              path: m.path,
+              canary: sel.canary,
+              why: sel.canary === "fail" ? "canary" : null,
+              bench: sel.bench,
+            },
+            store,
+          );
+        }
         return set({
           phase: "ready",
           path: m.path,
@@ -145,7 +211,16 @@ export function createModelClient({
           loaded: config.bytes,
           total: config.bytes,
           error: null,
+          check: null,
+          ...(sel
+            ? {
+                canary: sel.canary,
+                bench: sel.bench[m.path] ?? null,
+                fallback: sel.canary === "fail" ? "canary" : null,
+              }
+            : {}),
         });
+      }
       case WORKER_OUT.RESULT:
         if (pending?.id === m.id) {
           const p = pending;
@@ -192,11 +267,56 @@ export function createModelClient({
         error: { code: "load_failed", message: NOT_PUBLISHED },
       });
     }
-    const warm = await isCached(url, config);
+    const [warm] = await Promise.all([isCached(url, config), decidePlan()]);
     if (disposed) return;
     if (warm) launch(true);
     else if (consented) launch(false);
     else set({ phase: "needsConsent", total: config.bytes, cached: false });
+  }
+
+  /** The conversation minus replies the graphics path got wrong and the harness's feedback on each (the next message). */
+  function withoutInvalid(messages) {
+    const out = [];
+    for (let i = 0; i < messages.length; i++) {
+      const m = messages[i];
+      if (m.role === "assistant" && invalidReplies.has(m.content)) {
+        if (messages[i + 1]?.role === "user") i++;
+        continue;
+      }
+      out.push(m);
+    }
+    return out;
+  }
+
+  /** Mark the graphics path broken for this device, swap the worker for a processor one, resolve when it is ready. */
+  async function switchToCpu() {
+    const old = readVerdict(key, store);
+    const bench = old?.bench ?? {};
+    writeVerdict(
+      key,
+      {
+        webgpu: "broken",
+        path: "cpu",
+        canary: old?.canary ?? "pass",
+        why: "replies",
+        bench,
+      },
+      store,
+    );
+    switched = true;
+    invalidRun = 0;
+    stop();
+    plan = { path: "cpu", probe: false };
+    set({
+      error: null,
+      path: null,
+      check: null,
+      fallback: "replies",
+      canary: old?.canary ?? "pass",
+      bench: bench.cpu ?? null,
+    });
+    launch(true); // the file is cached by now: straight to "loading"
+    await untilReady();
   }
 
   return {
@@ -232,18 +352,33 @@ export function createModelClient({
     },
     /** @type {import("../agent/scripted-policy.js").Policy} */
     policy(messages) {
-      const run = async () => {
-        await untilReady();
-        const id = ++seq;
-        return new Promise((resolve, reject) => {
+      const generate = (msgs) =>
+        new Promise((resolve, reject) => {
+          const id = ++seq;
           pending = { id, resolve, reject };
           worker.postMessage({
             type: WORKER_IN.GENERATE,
             id,
-            prompt: renderChat(messages),
+            prompt: renderChat(msgs),
             maxTokens: config.maxTokens,
           });
         });
+      const run = async () => {
+        await untilReady();
+        const msgs = switched ? withoutInvalid(messages) : messages;
+        const reply = await generate(msgs);
+        // The safety net: only on the graphics path, only when a validity check was supplied.
+        if (!isValidReply || state.path !== "webgpu") return reply;
+        if (messages.length <= 2) invalidRun = 0; // a new job starts clean
+        if (isValidReply(reply)) {
+          invalidRun = 0;
+          return reply;
+        }
+        invalidReplies.add(reply);
+        if (++invalidRun < PATH_CHOICE.invalidRepliesToSwitch) return reply;
+        await switchToCpu();
+        // The same step again, on the processor, from the conversation without the garbage.
+        return generate(withoutInvalid(messages));
       };
       const p = chain.then(run);
       chain = p.catch(() => {});

@@ -20,7 +20,7 @@ const reEncoded = (args = []) =>
 
 /**
  * model_load_started once, when the model first starts downloading or loading; model_load_completed once, when it is
- * ready. A retry after a failure is not counted again, so started and completed stay comparable per page load.
+ * ready (plus the path it runs on and the graphics check's verdict). A retry after a failure is not counted again, so started and completed stay comparable per page load.
  * @param {{ getState(): import("../model/contract.js").ModelState, subscribe(fn: (s: any) => void): () => void } | undefined} model
  */
 function bindModelAnalytics(model, track) {
@@ -40,6 +40,9 @@ function bindModelAnalytics(model, track) {
         model_version: MODEL.version,
         cache_hit: s.cached === true,
         ms: bucketLoadMs(s.loadMs),
+        // coarse words only: where the model runs and what the graphics check said (never the adapter or the speeds)
+        model_path: s.path,
+        canary: s.canary ?? "skipped",
       });
     }
   };

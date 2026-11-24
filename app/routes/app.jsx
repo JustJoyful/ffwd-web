@@ -8,7 +8,9 @@ import { INPUT_ID } from "../agent/browser-runtime.js";
 import AskUser from "../components/tool/AskUser.jsx";
 import CapabilityNotice from "../components/tool/CapabilityNotice.jsx";
 import ModelLoader, { modelBlocks } from "../components/tool/ModelLoader.jsx";
-import ModelPathNotice from "../components/tool/ModelPathNotice.jsx";
+import ModelPathNotice, {
+  MemoryNotice,
+} from "../components/tool/ModelPathNotice.jsx";
 import CommandReveal from "../components/tool/CommandReveal.jsx";
 import DownloadButton from "../components/tool/DownloadButton.jsx";
 import DropOverlay from "../components/tool/DropOverlay.jsx";
@@ -276,7 +278,8 @@ export default function App() {
         ) : (
           <div className="win__body">
             <div className="modelzone">
-              <ModelPathNotice path={state.path} notice={state.notice} />
+              {state.memoryWarning && <MemoryNotice />}
+              <ModelPathNotice path={model.path ?? state.path} model={model} />
               <ModelLoader
                 model={model}
                 onConsent={modelActions.consent}

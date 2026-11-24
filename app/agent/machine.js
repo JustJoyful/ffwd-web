@@ -34,12 +34,13 @@ import { MACHINE_REASON, MODEL_ERROR_TEXT } from "../model/contract.js";
  * @property {string | null} question the model's question, in askingUser
  * @property {"webgpu" | "cpu" | null} path where the model runs (set by the capability check; kept across resets)
  * @property {string | null} notice why the model is on the processor, when it is (not a refusal)
+ * @property {boolean} memoryWarning the browser reports less memory than recommended (4 GB up to, not including, 8 GB): runs, with a warning
  * @property {string | null} reason why it ended: run_budget, turn_budget, too_long, model_unavailable, aborted (a typed
  *   model error, see MACHINE_REASON), policy_error (an untyped one), or the model's/device's words
  * @property {string | null} error a message for the person (a file that could not be read, MODEL_ERROR_TEXT for a typed
  *   model error, the raw text of an untyped policy error)
  *
- * @typedef {{ type: "capabilityChecked", ok: boolean, reason?: string, path?: "webgpu" | "cpu", notice?: string | null }
+ * @typedef {{ type: "capabilityChecked", ok: boolean, reason?: string, path?: "webgpu" | "cpu", notice?: string | null, memoryWarning?: boolean }
  *   | { type: "fileChosen", file: unknown }
  *   | { type: "requestSubmitted", request: string }
  *   | { type: "answered", text: string }
@@ -64,6 +65,7 @@ const initial = () => ({
   error: null,
   path: null,
   notice: null,
+  memoryWarning: false,
 });
 
 const FILE_STATES = [
@@ -235,6 +237,7 @@ export function createMachine(deps) {
       inputs: state.inputs,
       path: state.path, // where the model runs does not change with the request
       notice: state.notice,
+      memoryWarning: state.memoryWarning,
     });
   };
 
@@ -250,6 +253,7 @@ export function createMachine(deps) {
                   name: "ready",
                   path: e.path ?? null,
                   notice: e.notice ?? null,
+                  memoryWarning: e.memoryWarning === true,
                 }
               : {
                   name: "unsupportedDevice",
@@ -269,6 +273,7 @@ export function createMachine(deps) {
             inputs: [input],
             path: state.path,
             notice: state.notice,
+            memoryWarning: state.memoryWarning,
           });
         } catch (err) {
           set({ name: "ready", error: message(err) });

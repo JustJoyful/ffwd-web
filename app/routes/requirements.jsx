@@ -4,6 +4,7 @@ import { SiteFooter, SiteNav } from "../components/site/Shell.jsx";
 import {
   MAX_FILE_BYTES_PER_GB,
   MIN_DEVICE_MEMORY_GB,
+  RECOMMENDED_DEVICE_MEMORY_GB,
   REASON_TEXT,
   estimateWait,
   maxFileBytes,
@@ -72,6 +73,16 @@ const SECTIONS = {
           browser and check that hardware acceleration is switched on in its
           settings. Firefox and Safari are not tested yet.
         </p>
+        <p>
+          The first time you use ffwd on a computer, it also checks that the
+          graphics chip gives the right answers with the model, and measures
+          whether the graphics chip or the processor is faster. This can take a
+          minute or more on a slow computer. If the graphics chip gives wrong
+          answers, which we saw on one Intel chip, or the processor is faster,
+          ffwd uses the processor and says so. The result is remembered in your
+          browser, and the tool then shows the speed measured on your own
+          computer instead of the numbers above.
+        </p>
       </>
     ),
   },
@@ -82,9 +93,30 @@ const SECTIONS = {
         <p>
           ffwd turns you away when your browser reports less than{" "}
           <Num name="MIN_DEVICE_MEMORY_GB" value={MIN_DEVICE_MEMORY_GB} /> GB of
-          memory. Browsers round this number and cap it, so it is a guide and
-          not an exact reading. This limit is provisional and will change once
-          it has been measured on real computers.
+          memory. From{" "}
+          <Num name="MIN_DEVICE_MEMORY_GB" value={MIN_DEVICE_MEMORY_GB} /> GB up
+          to, but not including,{" "}
+          <Num
+            name="RECOMMENDED_DEVICE_MEMORY_GB"
+            value={RECOMMENDED_DEVICE_MEMORY_GB}
+          />{" "}
+          GB it runs and shows a warning, because large videos may fail. At{" "}
+          <Num
+            name="RECOMMENDED_DEVICE_MEMORY_GB"
+            value={RECOMMENDED_DEVICE_MEMORY_GB}
+          />{" "}
+          GB and above there is no warning.
+        </p>
+        <p>
+          Browsers round the number they report and never report more than{" "}
+          <Num
+            name="RECOMMENDED_DEVICE_MEMORY_GB"
+            value={RECOMMENDED_DEVICE_MEMORY_GB}
+          />{" "}
+          GB, so it is a guide and not an exact reading. Firefox and Safari
+          report nothing at all: ffwd cannot tell there, so it does not warn and
+          does not turn you away. These limits are provisional and will change
+          once they have been measured on real computers.
         </p>
         <p>
           Close other tabs and programs and reload the page. The desktop app is
@@ -150,10 +182,20 @@ export default function Requirements() {
                 <li>
                   Enough memory:{" "}
                   <Num
+                    name="RECOMMENDED_DEVICE_MEMORY_GB"
+                    value={RECOMMENDED_DEVICE_MEMORY_GB}
+                  />{" "}
+                  GB or more is recommended.{" "}
+                  <Num
                     name="MIN_DEVICE_MEMORY_GB"
                     value={MIN_DEVICE_MEMORY_GB}
                   />{" "}
-                  GB or more, provisionally.
+                  GB is the minimum, and below{" "}
+                  <Num
+                    name="RECOMMENDED_DEVICE_MEMORY_GB"
+                    value={RECOMMENDED_DEVICE_MEMORY_GB}
+                  />{" "}
+                  GB ffwd shows a warning.
                 </li>
               </ul>
               <p>

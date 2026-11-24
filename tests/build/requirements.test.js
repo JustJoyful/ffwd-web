@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import {
   MAX_FILE_BYTES_PER_GB,
   MIN_DEVICE_MEMORY_GB,
+  RECOMMENDED_DEVICE_MEMORY_GB,
   REASON_TEXT,
   estimateWait,
   maxFileBytes,
@@ -35,6 +36,7 @@ test("one section per capability reason, anchored by the reason's id, with a hea
 test("each number on the page equals the constant it comes from", () => {
   const expected = {
     MIN_DEVICE_MEMORY_GB,
+    RECOMMENDED_DEVICE_MEMORY_GB, // 2026-11-24: 8 GB recommended, 4 GB minimum with a warning
     MAX_FILE_MB_PER_GB: MAX_FILE_BYTES_PER_GB / MIB,
     MAX_FILE_MB_AT_4_GB: maxFileBytes(4) / MIB,
     CPU_FIRST_STEP_SECONDS: estimateWait("cpu").firstStepSeconds,

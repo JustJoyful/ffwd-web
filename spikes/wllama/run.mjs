@@ -514,6 +514,38 @@ async function speedprobe(o) {
   rmSync(profile, { recursive: true, force: true });
 }
 
+/** The canary prompt on this configuration: matched prefix length against the native reference ids (see page.js canary). */
+async function canary(o) {
+  mkdirSync(o.out, { recursive: true });
+  const profile = resolve(o.profile);
+  rmSync(profile, { recursive: true, force: true });
+  const ref = JSON.parse(
+    readFileSync(
+      resolve(SITE, o.ref ?? "app/model/canary-reference.json"),
+      "utf8",
+    ),
+  );
+  const s = await boot(o, { clearCache: true, profile });
+  const runs = await s.page.evaluate((a) => window.spike.canary(a), {
+    prompt: ref.prompt,
+    maxTokens: ref.maxTokens,
+    tokens: ref.tokens,
+    runs: Number(o.runs ?? 2),
+  });
+  writeJson(o.out, "canary.json", {
+    ...record(o, s),
+    reference: { text: ref.text, tokens: ref.tokens },
+    runs,
+  });
+  console.log(
+    JSON.stringify(
+      runs.map((r) => ({ matched: r.matched, wall_s: r.wall_ms / 1000 })),
+    ),
+  );
+  await shutdown(s);
+  rmSync(profile, { recursive: true, force: true });
+}
+
 async function bridge(o) {
   mkdirSync(o.out, { recursive: true });
   const profile = resolve(o.profile);
@@ -639,6 +671,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     coexist,
     memprobe,
     speedprobe,
+    canary,
     download,
     tokcheck: async (x) => console.log(JSON.stringify(await runTokcheck(x))),
   }[o.cmd];

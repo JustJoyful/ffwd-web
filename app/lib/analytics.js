@@ -21,7 +21,15 @@ export const EVENTS = {
   site_visit: ["landing_page", "referrer_domain"],
   capability_checked: ["webgpu", "fail_reason"],
   model_load_started: ["model_version", "cache_hit", "ms"],
-  model_load_completed: ["model_version", "cache_hit", "ms"],
+  // 2026-11-24: model_path (which hardware the model ended up on) and canary (what the first-visit check said about the
+  // graphics path) are coarse words, never adapter names. ARCHITECTURE section 9 in the model repo does not list them yet.
+  model_load_completed: [
+    "model_version",
+    "cache_hit",
+    "ms",
+    "model_path",
+    "canary",
+  ],
   edit_started: ["families", "mode", "input_size_bucket", "n_files_bucket"],
   spec_confirmed: ["edited_by_user"],
   edit_completed: [
@@ -49,6 +57,8 @@ const ENUMS = {
   reason_category: ["run_budget", "turn_budget", "policy_error"],
   category: [],
   mode: ["browser", "helper"],
+  model_path: ["webgpu", "cpu"],
+  canary: ["pass", "fail", "skipped"],
 };
 const FAMILIES = Array.from({ length: 12 }, (_, i) => `F${i + 1}`);
 
