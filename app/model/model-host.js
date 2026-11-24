@@ -22,6 +22,7 @@ import {
 import { runBenchmark, runCanary, pickPath } from "./canary.js";
 import reference from "./canary-reference.json";
 import { createSha256 } from "./sha256.js";
+import { VERIFIED_FIELD, isVerified, verifiedMarker } from "./verified.js";
 
 const typed = (code, message) => Object.assign(new Error(message), { code });
 const text = (e) => (e instanceof Error ? e.message : String(e));
@@ -70,14 +71,24 @@ export function createModelHost({
     }
   };
 
-  /** Returns true when the file was already in the cache (no download). Throws typed errors. */
+  /**
+   * Makes sure the verified model file is in the cache and returns it: `{ cached, blob }`. `cached` is true when no
+   * download happened. The blob is the one that was hashed (or that carries our own marker), and it is what gets loaded
+   * (not a second lookup by URL that could download again). Throws typed errors.
+   */
   async function ensureFile(w, msg) {
     const cm = w.cacheManager;
     const name = await cm.getNameFromURL(msg.modelUrl);
     const size = await cm.getSize(name);
     const meta = size >= 0 ? await cm.getMetadata(name) : null;
-    // The verified marker is the sha256 stored in the cache entry's metadata: a warm load does not rehash 444 MB.
-    if (size === msg.bytes && meta?.sha256 === msg.sha256) return true;
+    // Warm path: our own marker (verified.js), written only after a full hash of these bytes. wllama's `sha256`
+    // metadata is not trusted: it can be set before anything was hashed.
+    if (size === msg.bytes && isVerified(meta, name, msg)) {
+      const blob = await cm.open(name);
+      if (blob?.size === msg.bytes) return { cached: true, blob };
+    }
+    // A wrong-sized entry would be reused by download() without a fetch (it matches on URL and recorded size).
+    if (size >= 0 && size !== msg.bytes) await cm.delete(name).catch(() => {});
 
     const downloaded = size !== msg.bytes;
     if (downloaded) {
@@ -110,16 +121,17 @@ export function createModelHost({
     if ((await hashBlob(blob)) !== msg.sha256) {
       await bad("the model file's sha256 differs");
     }
+    // Only now, after the full pass: if the tab dies before this line, the next visit hashes again.
     await cm.writeMetadata(name, {
       ...(await cm.getMetadata(name)),
-      sha256: msg.sha256,
+      [VERIFIED_FIELD]: verifiedMarker(name, msg),
     });
-    return !downloaded;
+    return { cached: !downloaded, blob };
   }
 
   /** The engine settings per path (the owner-confirmed configuration, config.js). `threads` is for the processor only. */
-  const loadModel = (w, msg, path) =>
-    w.loadModelFromUrl(msg.modelUrl, {
+  const loadModel = (w, msg, path, blob) =>
+    w.loadModel([blob], {
       n_ctx: msg.nCtx,
       n_gpu_layers: path === "webgpu" ? 999 : 0,
       cache_type_k: msg.kvCache,
@@ -153,18 +165,18 @@ export function createModelHost({
     try {
       w = await loadWllama();
       wllama = w;
-      const cached = await ensureFile(w, msg);
+      const { cached, blob } = await ensureFile(w, msg);
       let path = msg.path;
       let selection;
       if (!msg.probe) {
-        await loadModel(w, msg, path);
+        await loadModel(w, msg, path, blob);
       } else {
         const bench = {};
         let canary = "skipped";
         let matched = 0;
         if (msg.path === "webgpu") {
           try {
-            await loadModel(w, msg, "webgpu");
+            await loadModel(w, msg, "webgpu", blob);
             alive();
             progress({ phase: "check", loaded: 0, total: 0, step: "canary" });
             const c = await runCanary(w, { modelSha256: msg.sha256 });
@@ -191,7 +203,7 @@ export function createModelHost({
           await swap();
         }
         progress({ phase: "check", loaded: 0, total: 0, step: "benchmark" });
-        await loadModel(w, msg, "cpu");
+        await loadModel(w, msg, "cpu", blob);
         alive();
         const b = await runBenchmark(w);
         if (b) bench.cpu = b;
@@ -199,7 +211,7 @@ export function createModelHost({
         path = canary === "pass" ? pickPath(bench) : "cpu";
         if (path === "webgpu") {
           await swap();
-          await loadModel(w, msg, "webgpu");
+          await loadModel(w, msg, "webgpu", blob);
         }
         selection = { canary, matched, of: reference.tokens.length, bench };
       }

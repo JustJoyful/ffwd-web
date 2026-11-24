@@ -23,6 +23,7 @@ import {
   validateWorkerMessage,
 } from "./contract.js";
 import { cacheKey, readVerdict, writeVerdict } from "./path-cache.js";
+import { isVerified } from "./verified.js";
 
 const NOT_PUBLISHED =
   "The on-device model is not published yet, so ffwd cannot run jobs in this build.";
@@ -31,15 +32,17 @@ const modelError = (code, message) =>
   Object.assign(new Error(message), { code });
 
 // Is the verified model file already in this browser's cache? Asked on the main thread, before any worker exists,
-// through wllama's own cache manager (the same OPFS store the worker fills; the sha256 stored in the entry's metadata is
-// the "verified" marker model-host.js writes). Loaded on demand, so the page costs nothing until a file is chosen.
+// through wllama's own cache manager (the same OPFS store the worker fills; the app's own marker in the entry's metadata,
+// verified.js, is written by model-host.js only after a full hash; wllama's own sha256 field is not trusted). Loaded on demand, so the page costs nothing until a file is chosen.
+export async function cacheIsVerified(cm, url, config) {
+  const name = await cm.getNameFromURL(url);
+  if ((await cm.getSize(name)) !== config.bytes) return false;
+  return isVerified(await cm.getMetadata(name), name, config);
+}
 async function defaultIsCached(url, config) {
   try {
     const { CacheManager } = await import("@wllama/wllama");
-    const cm = new CacheManager();
-    const name = await cm.getNameFromURL(url);
-    if ((await cm.getSize(name)) !== config.bytes) return false;
-    return (await cm.getMetadata(name))?.sha256 === config.sha256;
+    return await cacheIsVerified(new CacheManager(), url, config);
   } catch {
     return false; // when in doubt ask, never download silently
   }

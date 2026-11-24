@@ -4,12 +4,14 @@ import { createHash } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { createModelHost } from "../../app/model/model-host.js";
 import { validateWorkerMessage } from "../../app/model/contract.js";
+import { cacheIsVerified } from "../../app/model/client.js";
 
 const CONTENT = new TextEncoder().encode(
   "a pretend gguf file, 40 bytes long..!!",
 );
 const SHA = createHash("sha256").update(CONTENT).digest("hex");
 const URL_ = "http://localhost/m.gguf";
+const MARKER = { name: `k_${URL_}`, sha256: SHA, bytes: CONTENT.length };
 const INIT = {
   type: "init",
   modelUrl: URL_,
@@ -33,6 +35,7 @@ function makeEnv({ cache = null, download = CONTENT, ...over } = {}) {
   const log = {
     downloads: 0,
     loads: [],
+    blobs: [],
     exits: 0,
     deletes: 0,
     completions: [],
@@ -64,9 +67,11 @@ function makeEnv({ cache = null, download = CONTENT, ...over } = {}) {
   };
   const wllama = {
     cacheManager,
-    loadModelFromUrl: async (u, o) => {
+    // The host loads the blob it verified, never a second lookup by URL (review S2).
+    loadModel: async (blobs, o) => {
       if (over.loadFails) throw new Error(over.loadFails);
-      log.loads.push({ u, ...o });
+      log.loads.push({ ...o });
+      log.blobs.push(blobs);
     },
     getLoadedContextInfo: () => ({ n_ctx: over.ctx ?? 100 }),
     getNumThreads: () => 4,
@@ -116,8 +121,8 @@ describe("init", () => {
       cached: false,
     });
     expect(ready.loadMs).toBeGreaterThanOrEqual(0);
-    // the verified marker is stored for the next visit
-    expect(store.get(`k_${URL_}`).meta.sha256).toBe(SHA);
+    // our own verified marker is stored for the next visit, after the hash
+    expect(store.get(`k_${URL_}`).meta.ffwdVerified).toEqual(MARKER);
   });
 
   test("settings: q8_0 KV cache with flash attention, all layers on the graphics chip", async () => {
@@ -125,7 +130,6 @@ describe("init", () => {
     await host.handle(INIT);
     expect(log.loads).toEqual([
       {
-        u: URL_,
         n_ctx: 100,
         n_gpu_layers: 999,
         cache_type_k: "q8_0",
@@ -175,7 +179,7 @@ describe("init", () => {
           throw new Error("rehashed");
         },
       },
-      meta: { originalSize: CONTENT.length, sha256: SHA },
+      meta: { originalSize: CONTENT.length, ffwdVerified: MARKER },
     };
     const { host, out, log } = makeEnv({ cache: trap });
     await host.handle(INIT);
@@ -193,7 +197,70 @@ describe("init", () => {
     await host.handle(INIT);
     expect(log.downloads).toBe(0);
     expect(out.at(-1)).toMatchObject({ type: "ready", cached: true });
-    expect(store.get(`k_${URL_}`).meta.sha256).toBe(SHA);
+    expect(store.get(`k_${URL_}`).meta.ffwdVerified).toEqual(MARKER);
+  });
+
+  // Review S2: wllama writes `sha256` into the metadata from the host's claim when a download ends, before any hash. A tab
+  // that died during the hash leaves exactly that, and it must not count as verified.
+  test("wllama's own sha256 field is not a verified marker: the file is hashed again", async () => {
+    const bad = new Uint8Array(CONTENT);
+    bad[0] ^= 1; // different bytes, same size, the host-claimed hash in the metadata
+    const cache = {
+      blob: new Blob([bad]),
+      meta: { originalSize: CONTENT.length, sha256: SHA },
+    };
+    const { host, out, log } = makeEnv({ cache });
+    await host.handle(INIT);
+    expect(out.at(-1)).toMatchObject({ type: "error", code: "hash_mismatch" });
+    expect(log.loads).toHaveLength(0);
+  });
+
+  test("a marker for another sha256, size or file name does not count", async () => {
+    for (const marker of [
+      { ...MARKER, sha256: "0".repeat(64) },
+      { ...MARKER, bytes: CONTENT.length + 1 },
+      { ...MARKER, name: "k_other" },
+    ]) {
+      const bad = new Uint8Array(CONTENT);
+      bad[0] ^= 1;
+      const { host, out } = makeEnv({
+        cache: {
+          blob: new Blob([bad]),
+          meta: { originalSize: CONTENT.length, ffwdVerified: marker },
+        },
+      });
+      await host.handle(INIT);
+      expect(out.at(-1)).toMatchObject({ code: "hash_mismatch" });
+    }
+  });
+
+  test("the marker is written only after the hash: a tab that dies while hashing leaves none", async () => {
+    const { host, store } = makeEnv();
+    store.set(`k_${URL_}`, {
+      blob: {
+        size: CONTENT.length,
+        stream: () => {
+          throw new Error("tab died"); // stands in for the page going away mid-hash
+        },
+      },
+      meta: { originalSize: CONTENT.length, sha256: SHA },
+    });
+    await host.handle(INIT);
+    expect(store.get(`k_${URL_}`).meta.ffwdVerified).toBeUndefined();
+  });
+
+  test("the verified blob is what gets loaded, and a wrong-sized cached entry is deleted before the download", async () => {
+    const { host, log, store } = makeEnv({
+      cache: {
+        blob: new Blob([CONTENT.slice(0, 7)]),
+        meta: { originalSize: 7, originalURL: URL_ },
+      },
+    });
+    await host.handle(INIT);
+    expect(log.deletes).toBe(1); // the stale entry, not a hash failure
+    expect(log.downloads).toBe(1);
+    expect(log.blobs[0]).toHaveLength(1);
+    expect(log.blobs[0][0]).toBe(store.get(`k_${URL_}`).blob);
   });
 
   test("hash mismatch: the file is deleted, error hash_mismatch, nothing loaded, the runtime freed", async () => {
@@ -411,5 +478,24 @@ describe("malformed messages", () => {
       id: 4,
       code: "generate_failed",
     });
+  });
+});
+
+describe("the main thread's warm-cache probe uses the same marker (review S2)", () => {
+  const cm = (meta, size = CONTENT.length) => ({
+    getNameFromURL: async () => `k_${URL_}`,
+    getSize: async () => size,
+    getMetadata: async () => meta,
+  });
+  const cfg = { sha256: SHA, bytes: CONTENT.length };
+  test("only our marker counts, never wllama's sha256 field", async () => {
+    expect(await cacheIsVerified(cm({ ffwdVerified: MARKER }), URL_, cfg)).toBe(
+      true,
+    );
+    expect(await cacheIsVerified(cm({ sha256: SHA }), URL_, cfg)).toBe(false);
+    expect(await cacheIsVerified(cm(null), URL_, cfg)).toBe(false);
+    expect(
+      await cacheIsVerified(cm({ ffwdVerified: MARKER }, 5), URL_, cfg),
+    ).toBe(false);
   });
 });

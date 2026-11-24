@@ -45,9 +45,12 @@ function make({ webgpu = "good", speed = SPEED, onCompletion } = {}) {
       cacheManager: {
         getNameFromURL: async () => "k",
         getSize: async () => 40,
-        getMetadata: async () => ({ sha256: MODEL.sha256 }),
+        getMetadata: async () => ({
+          ffwdVerified: { name: "k", sha256: MODEL.sha256, bytes: 40 },
+        }),
+        open: async () => ({ size: 40 }),
       },
-      loadModelFromUrl: async (_u, o) => {
+      loadModel: async (_blobs, o) => {
         path = o.n_gpu_layers > 0 ? "webgpu" : "cpu";
         log.push(
           `load#${id}:${path}${path === "cpu" ? `:t${o.n_threads}` : ""}`,
