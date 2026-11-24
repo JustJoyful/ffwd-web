@@ -520,7 +520,10 @@ async function canary(o) {
   const profile = resolve(o.profile);
   rmSync(profile, { recursive: true, force: true });
   const ref = JSON.parse(
-    readFileSync(resolve(SITE, o.ref ?? "app/model/canary-reference.json"), "utf8"),
+    readFileSync(
+      resolve(SITE, o.ref ?? "app/model/canary-reference.json"),
+      "utf8",
+    ),
   );
   const s = await boot(o, { clearCache: true, profile });
   const runs = await s.page.evaluate((a) => window.spike.canary(a), {
