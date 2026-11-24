@@ -100,24 +100,27 @@ describe("sanitize", () => {
       });
   });
 
-  test("model_load_completed keeps only the coarse path and canary words; anything else in those fields becomes other", async () => {
+  test("model_load_completed keeps only the coarse model_path and canary_result words; anything else in those fields becomes other", async () => {
     const { sanitize } = await load();
     expect(
       sanitize("model_load_completed", {
         model_path: "cpu",
-        canary: "fail",
+        canary_result: "fail",
         adapter: "intel gen-12lp",
       }),
-    ).toEqual({ model_path: "cpu", canary: "fail" });
+    ).toEqual({ model_path: "cpu", canary_result: "fail" });
     expect(
       sanitize("model_load_completed", {
         model_path: "NVIDIA GeForce RTX 3050",
-        canary: "intel gen-12lp",
+        canary_result: "intel gen-12lp",
       }),
-    ).toEqual({ model_path: "other", canary: "other" });
+    ).toEqual({ model_path: "other", canary_result: "other" });
     // the started event never carries them
     expect(
-      sanitize("model_load_started", { model_path: "cpu", canary: "pass" }),
+      sanitize("model_load_started", {
+        model_path: "cpu",
+        canary_result: "pass",
+      }),
     ).toEqual({});
   });
 
@@ -197,7 +200,7 @@ describe("sanitize", () => {
       capability_checked: ["fail_reason"],
       edit_failed: ["reason_category"],
       ask_user_shown: ["category"],
-      model_load_completed: ["model_path", "canary", "ms"],
+      model_load_completed: ["model_path", "canary_result", "ms"],
     };
     for (const [event, keys] of Object.entries(cases))
       for (const key of keys)
@@ -335,7 +338,8 @@ describe("track and the loader", () => {
       disable_session_recording: true,
       ip: false,
       capture_pageview: false,
-      persistence: "memory",
+      persistence: "localStorage",
+      respect_dnt: true,
       person_profiles: "identified_only",
     });
     expect(typeof opts.before_send).toBe("function");
@@ -444,7 +448,7 @@ describe("EVENTS", () => {
         "cache_hit",
         "ms",
         "model_path",
-        "canary",
+        "canary_result",
       ],
       edit_started: ["families", "mode", "input_size_bucket", "n_files_bucket"],
       spec_confirmed: ["edited_by_user"],

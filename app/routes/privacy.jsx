@@ -207,8 +207,9 @@ export default function Privacy() {
               {ANALYTICS_PERSISTENCE === "localStorage" ? (
                 <p>
                   To tell a returning browser from a new one, ffwd keeps a
-                  random ID in your browser's local storage. It is not linked to
-                  who you are. Clearing your browser's site data removes it.
+                  random anonymous ID in your browser's local storage on this
+                  device. It is not linked to who you are, and ffwd sets no
+                  cookies. Clearing your browser's site data removes it.
                 </p>
               ) : (
                 <p>
@@ -219,7 +220,8 @@ export default function Privacy() {
               {RESPECT_DNT_GPC && (
                 <p>
                   If your browser sends Do Not Track or Global Privacy Control,
-                  ffwd does not load the counting service at all.
+                  ffwd respects it: the counting service is not loaded at all,
+                  so no ID is created.
                 </p>
               )}
             </div>
