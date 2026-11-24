@@ -50,7 +50,11 @@ function pyRepr(s) {
   return q + body + q;
 }
 
-/** Split on , and ; outside [labels], '...' quotes and backslash escapes (the tokenisation FFmpeg applies). */
+/**
+ * Split on , and ; outside [labels], '...' quotes and backslash escapes. This is FFmpeg's av_get_token: a backslash
+ * escapes the next character only OUTSIDE single quotes; inside quotes it is a literal and the next ' closes the
+ * quote, so `'\'` is one complete quoted string (review S1: honouring the escape there hid `,movie=...`).
+ */
 function splitGraph(graph) {
   const parts = [];
   let buf = "";
@@ -58,7 +62,7 @@ function splitGraph(graph) {
   let bracket = false;
   for (let i = 0; i < graph.length; i++) {
     const ch = graph[i];
-    if (ch === "\\" && i + 1 < graph.length) {
+    if (!quoted && ch === "\\" && i + 1 < graph.length) {
       buf += graph.slice(i, i + 2);
       i++;
       continue;

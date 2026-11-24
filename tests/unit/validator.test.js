@@ -68,6 +68,64 @@ describe("hostile or sloppy model output is rejected with a reason, never thrown
   });
 });
 
+describe("filtergraph quoting follows FFmpeg's av_get_token (review S1)", () => {
+  // JS-only regression cases: the shared conformance suite is owned by the model repo and is not changed here.
+  // Inside '...' a backslash is a literal and the next ' closes the quote; a backslash escapes only OUTSIDE quotes.
+  const vf = (graph, opt = "-vf") =>
+    validateRun(["-i", "{in:a}", opt, graph, "{out:o}"], ["a"], ["o"]);
+  test.each([
+    // The review's exact string, plus siblings (setsar, ffmpeg opened the movie filter's file for real with these).
+    String.raw`null='\',movie=in_0.mp4'`,
+    String.raw`null='\',amovie=x:y=1'`,
+    String.raw`setsar='\',movie=in_0.mp4'`,
+    String.raw`null='\';movie=in_0.mp4'`,
+    String.raw`null='\',sendcmd=f=x'`,
+    String.raw`null='\',subtitles=x.srt'`,
+    String.raw`null='\',ass=x.ass'`,
+    String.raw`null='\',lavfi=x'`,
+    String.raw`null='\',Movie=x'`,
+    String.raw`null='\',mov'ie'=x'`,
+    String.raw`null='\'[a],movie=x'`,
+    String.raw`scale=64:64,null='\',movie=x'`,
+  ])("rejects %s", (graph) => {
+    for (const opt of ["-vf", "-af", "-filter", "-filter_complex"])
+      expect(vf(graph, opt).ok).toBe(false);
+  });
+  test("a quoted backslash is a literal, so the graph splits after the closing quote", () => {
+    expect(vf(String.raw`null='\',scale=64:64`).ok).toBe(true); // both on the allow-list
+    expect(vf(String.raw`null='\',movie=x`).reason).toBe(
+      "filter not allowed: movie",
+    );
+  });
+  test("legitimate quoting and escaping still pass", () => {
+    expect(vf(String.raw`select='not(mod(n\,10))'`).ok).toBe(true);
+    expect(vf(String.raw`select='gt(scene,0.4)'`).ok).toBe(true);
+    expect(vf(String.raw`select=not(mod(n\,10))`).ok).toBe(true); // escape outside quotes
+    expect(vf(String.raw`scale=64:64\,null`).ok).toBe(true); // one scale filter, ffmpeg itself rejects the argument
+  });
+  test("file-reading filters are rejected however they are written", () => {
+    for (const g of [
+      "movie=x",
+      "amovie=x",
+      "subtitles=x",
+      "ass=x",
+      "sendcmd=f=x",
+      "lavfi=x",
+      "drawtext=textfile=x",
+      "MOVIE=x",
+      String.raw`mov\ie=x`,
+      "'movie'=x",
+      "movie\n=x",
+      "[a]movie=x[b]",
+      "null,\nmovie=x",
+      "null;movie=x",
+      "movie =x",
+      "ｍovie=x",
+    ])
+      expect(vf(g).ok).toBe(false);
+  });
+});
+
 describe("usesStreamCopyOnly", () => {
   test.each([
     [["-i", "{in:a}", "-c", "copy", "{out:o}"], true],
