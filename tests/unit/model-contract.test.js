@@ -32,7 +32,23 @@ describe("worker messages", () => {
     { ...INIT, path: "cpu", threads: 4 },
     { type: "generate", id: 1, prompt: "<|im_start|>user\nhi", maxTokens: 512 },
     { type: "exit" },
+    { ...INIT, probe: true },
     { type: "progress", phase: "download", loaded: 5, total: 10 },
+    { type: "progress", phase: "check", loaded: 0, total: 0, step: "canary" },
+    {
+      type: "ready",
+      path: "cpu",
+      threads: 4,
+      nCtx: 8192,
+      cached: true,
+      loadMs: 900.5,
+      selection: {
+        canary: "fail",
+        matched: 0,
+        of: 20,
+        bench: { cpu: { ppTokS: 58, genTokS: 36.3 } },
+      },
+    },
     {
       type: "ready",
       path: "cpu",
@@ -75,6 +91,50 @@ describe("worker messages", () => {
       "progress with a bad phase",
       { type: "progress", phase: "fetch", loaded: 1, total: 2 },
     ],
+    ["init with a non-boolean probe", { ...INIT, probe: "yes" }],
+    [
+      "a check step on a download message",
+      {
+        type: "progress",
+        phase: "download",
+        loaded: 1,
+        total: 2,
+        step: "canary",
+      },
+    ],
+    [
+      "an unknown check step",
+      { type: "progress", phase: "check", loaded: 0, total: 0, step: "warm" },
+    ],
+    [
+      "a selection with an unknown canary word",
+      {
+        type: "ready",
+        path: "cpu",
+        threads: 4,
+        nCtx: 8192,
+        cached: true,
+        loadMs: 1,
+        selection: { canary: "maybe", matched: 0, of: 20, bench: {} },
+      },
+    ],
+    [
+      "a selection with a bad bench number",
+      {
+        type: "ready",
+        path: "cpu",
+        threads: 4,
+        nCtx: 8192,
+        cached: true,
+        loadMs: 1,
+        selection: {
+          canary: "pass",
+          matched: 20,
+          of: 20,
+          bench: { cpu: { ppTokS: "fast", genTokS: 1 } },
+        },
+      },
+    ],
     [
       "result with no timings",
       { type: "result", id: 1, text: "", finishReason: "stop", wallMs: 1 },
@@ -115,6 +175,11 @@ describe("the model state and config", () => {
       path: null,
       loadMs: null,
       error: null,
+      // 2026-11-24, owner-approved: the path check (canary and speed test) adds these four, all null at the start
+      check: null,
+      canary: null,
+      bench: null,
+      fallback: null,
     });
   });
   test("the config is the owner-confirmed configuration (D-050, D-051)", () => {

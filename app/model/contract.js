@@ -11,6 +11,12 @@
 //              <-(result | error)--------------   the reply text (or a typed error)
 //              --(exit)------------------------->  frees the model
 //
+// 2026-11-24 (owner-approved extension, stream B2): the worker can also CHOOSE the path. On a first visit it loads the
+// graphics engine, runs a canary prompt against a native reference (canary.js), benchmarks, and keeps the faster correct
+// path, loading the two engines one after the other (never together). The main thread keeps the verdict in localStorage
+// (path-cache.js; workers have none) and sends it back as a fixed path on later visits. New: InitMsg.probe, ProgressMsg
+// phase "check", ReadyMsg.selection, ModelState.check / canary / bench / fallback.
+//
 // The prompt is rendered on the main thread by app/agent/chat-template.js (renderChat) and handed over as a string:
 // the runtime's own chat template is never used (D-050). The worker enforces the context rule: if the prompt plus the
 // reply budget does not fit in nCtx it answers with error code "context_full" and never truncates the history.
@@ -41,13 +47,20 @@ export const ERROR_CODES = [
  * @typedef {"webgpu" | "cpu"} ModelPath
  *
  * main -> worker
- * @typedef {{ type: "init", modelUrl: string, sha256: string, bytes: number, nCtx: number, path: ModelPath, kvCache: "q8_0" | "f16", threads?: number }} InitMsg
+ * `probe: true` (graphics-capable device, no verdict cached yet): `path` is "webgpu" and the worker decides (see top). With
+ * `probe: true` and path "cpu" (no usable adapter) it only benchmarks the processor. Without `probe` the path is loaded as asked.
+ * `threads` applies to the processor engine only.
+ * @typedef {{ type: "init", modelUrl: string, sha256: string, bytes: number, nCtx: number, path: ModelPath, kvCache: "q8_0" | "f16", threads?: number, probe?: boolean }} InitMsg
  * @typedef {{ type: "generate", id: number, prompt: string, maxTokens: number }} GenerateMsg
  * @typedef {{ type: "exit" }} ExitMsg
  *
  * worker -> main
- * @typedef {{ type: "progress", phase: "download" | "load", loaded: number, total: number }} ProgressMsg
- * @typedef {{ type: "ready", path: ModelPath, threads: number, nCtx: number, cached: boolean, loadMs: number, adapter?: { vendor?: string, architecture?: string, isFallbackAdapter?: boolean | null } }} ReadyMsg
+ * `phase: "check"` is the first-visit canary and benchmark (`step` says which; loaded and total are 0).
+ * @typedef {{ type: "progress", phase: "download" | "load" | "check", loaded: number, total: number, step?: "canary" | "benchmark" }} ProgressMsg
+ * @typedef {{ ppTokS: number, genTokS: number }} Bench  prompt-processing and generation speed, tokens per second
+ * @typedef {{ canary: "pass" | "fail" | "skipped", matched: number, of: number, bench: { webgpu?: Bench, cpu?: Bench } }} Selection
+ *   canary: "skipped" = there was no usable adapter, so nothing was tried; matched/of = first ids equal to the native reference
+ * @typedef {{ type: "ready", path: ModelPath, threads: number, nCtx: number, cached: boolean, loadMs: number, adapter?: { vendor?: string, architecture?: string, isFallbackAdapter?: boolean | null }, selection?: Selection }} ReadyMsg `path` is the path that is loaded now
  * @typedef {{ type: "result", id: number, text: string, finishReason: "stop" | "length" | null, timings: { cacheN: number, promptN: number, promptMs: number, predictedN: number, predictedMs: number }, wallMs: number }} ResultMsg
  * @typedef {{ type: "error", id?: number, code: typeof ERROR_CODES[number], message: string }} ErrorMsg
  */
@@ -60,7 +73,13 @@ export const ERROR_CODES = [
  *   loading      reading the cached file into memory and starting the runtime
  *   ready        a job can run; `path` says where
  *   failed       `error` says why; `retry()` is offered unless the code is "out_of_memory"
- * @typedef {{ phase: "idle" | "needsConsent" | "downloading" | "loading" | "ready" | "failed", loaded: number, total: number, cached: boolean, path: ModelPath | null, loadMs: number | null, error: null | { code: string, message: string } }} ModelState
+ * Added 2026-11-24 (the phase list is unchanged: the check is part of "loading"):
+ *   check        null, or "canary" / "benchmark" while the first-visit check runs inside "loading" (it can take a minute)
+ *   canary       the verdict on the graphics path for this device: "pass", "fail" or "skipped" (no usable adapter); null until known
+ *   bench        measured speed of the path that is loaded (ppTokS, genTokS), for the wait estimate; null until measured
+ *   fallback     why the processor runs although the device has a graphics chip: "canary" (its output was wrong), "replies"
+ *                (two unreadable replies in a row while running on it) or null
+ * @typedef {{ phase: "idle" | "needsConsent" | "downloading" | "loading" | "ready" | "failed", loaded: number, total: number, cached: boolean, path: ModelPath | null, loadMs: number | null, error: null | { code: string, message: string }, check: null | "canary" | "benchmark", canary: null | "pass" | "fail" | "skipped", bench: null | Bench, fallback: null | "canary" | "replies" }} ModelState
  *
  * The client API (app/model/client.js, createModelClient): getState(), subscribe(fn) -> unsubscribe, begin(),
  * consent(), decline(), retry(), policy(messages) -> Promise<string> (a Policy: awaits "ready", renders, generates),
@@ -76,6 +95,10 @@ export const initialModelState = () => ({
   path: null,
   loadMs: null,
   error: null,
+  check: null,
+  canary: null,
+  bench: null,
+  fallback: null,
 });
 
 /** The sentence the person reads when a job ends because of the model, per code. */
@@ -96,6 +119,8 @@ export const MODEL_ERROR_TEXT = {
 const isObj = (m) => m !== null && typeof m === "object";
 const int = (n) => Number.isInteger(n) && n >= 0;
 const PATHS = ["webgpu", "cpu"];
+const num = (n) => typeof n === "number" && Number.isFinite(n) && n >= 0;
+const isBench = (b) => isObj(b) && num(b.ppTokS) && num(b.genTokS);
 
 /** Throws a clear error for a malformed message in either direction; returns the message when it is valid. */
 export function validateWorkerMessage(m) {
@@ -118,6 +143,7 @@ export function validateWorkerMessage(m) {
       if (m.threads !== undefined && (!int(m.threads) || m.threads === 0)) {
         bad("threads");
       }
+      if (m.probe !== undefined && typeof m.probe !== "boolean") bad("probe");
       return m;
     case WORKER_IN.GENERATE:
       if (!int(m.id)) bad("id");
@@ -129,8 +155,14 @@ export function validateWorkerMessage(m) {
     case WORKER_IN.EXIT:
       return m;
     case WORKER_OUT.PROGRESS:
-      if (!["download", "load"].includes(m.phase)) bad("phase");
+      if (!["download", "load", "check"].includes(m.phase)) bad("phase");
       if (!int(m.loaded) || !int(m.total)) bad("loaded and total");
+      if (
+        m.step !== undefined &&
+        (m.phase !== "check" || !["canary", "benchmark"].includes(m.step))
+      ) {
+        bad("step");
+      }
       return m;
     case WORKER_OUT.READY:
       if (!PATHS.includes(m.path)) bad("path");
@@ -141,6 +173,21 @@ export function validateWorkerMessage(m) {
         typeof m.loadMs !== "number"
       ) {
         bad("threads, nCtx, cached, loadMs");
+      }
+      if (m.selection !== undefined) {
+        const x = m.selection;
+        if (
+          !isObj(x) ||
+          !["pass", "fail", "skipped"].includes(x.canary) ||
+          !int(x.matched) ||
+          !int(x.of) ||
+          !isObj(x.bench) ||
+          Object.entries(x.bench).some(
+            ([k, b]) => !PATHS.includes(k) || !isBench(b),
+          )
+        ) {
+          bad("selection");
+        }
       }
       return m;
     case WORKER_OUT.RESULT:
