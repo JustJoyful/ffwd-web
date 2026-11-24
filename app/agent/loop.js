@@ -93,6 +93,8 @@ export function createJob({
     /** @type {object | null} the model's spec; once the person confirms it, the checker uses it */
     spec: null,
     confirmed: false,
+    /** @type {object | null} the last spec the person confirmed; a later spec may not loosen it (spec-guard.js) */
+    confirmedSpec: null,
     lastPassed: false,
     /** @type {Run[]} */
     history: [],

@@ -12,6 +12,7 @@
 import { describeSpec } from "./describe-spec.js";
 import { MAX_ASK_USER, MAX_RUNS, MAX_TURNS } from "./config.js";
 import { createJob, executeRun, nextAction, observe } from "./loop.js";
+import { looseningError, specBoundsError } from "./spec-guard.js";
 import { MACHINE_REASON, MODEL_ERROR_TEXT } from "../model/contract.js";
 
 /**
@@ -140,7 +141,26 @@ export function createMachine(deps) {
       }
       const action = step.action;
       switch (action.action) {
-        case "spec":
+        case "spec": {
+          // The numbers the plan card does not show are bounded, and a spec the person already confirmed is frozen
+          // except for tightening (review S3). Either failure is an invalid turn; the old spec stays in force.
+          const bad =
+            specBoundsError(action.spec) ??
+            (job.confirmedSpec &&
+              looseningError(job.confirmedSpec, action.spec));
+          if (bad) {
+            observe(
+              job,
+              reply,
+              {
+                error: job.confirmedSpec
+                  ? `the person already confirmed the spec; it cannot be loosened or changed (${bad}). Fix the command, not the spec`
+                  : `invalid spec: ${bad}`,
+              },
+              { invalid: true },
+            );
+            continue;
+          }
           job.spec = action.spec;
           job.confirmed = false;
           pendingReply = reply;
@@ -150,6 +170,7 @@ export function createMachine(deps) {
             question: null,
             ...snap(),
           });
+        }
         case "ask_user":
           job.asks += 1;
           if (job.asks > MAX_ASK_USER) {
@@ -302,6 +323,7 @@ export function createMachine(deps) {
         observe(job, pendingReply, { spec: "confirmed" });
         pendingReply = null;
         job.confirmed = true;
+        job.confirmedSpec = job.spec;
         set({ name: "running", ...snap() });
         await drive();
         return;

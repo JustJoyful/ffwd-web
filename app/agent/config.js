@@ -22,6 +22,15 @@ export const LOUDNESS_TOLERANCE_LU = 2.0;
 export const OFFSET_TOLERANCE_MS = 40.0;
 export const SSIM_FLOOR_DEFAULT = 0.9;
 export const PSNR_FLOOR_DB_DEFAULT = 28.0;
+// Bounds on the three spec fields the person never sees (review S3). The schema leaves them unbounded numbers.
+//  tolerance_s: at most 0.5. The checker default is 0.1 (DEFAULT_TIME_TOLERANCE_S); the task generator writes only 0.15
+//    (1320 train specs) and 0.2 (1171) in data/tasks/train/v1.jsonl, so 0.2 is the largest value the model was ever
+//    trained to write; tests/unit/checker.test.js uses 0.5 as its loosest example. 0.5 keeps that headroom and no more.
+//  min_ssim / min_psnr_db: never below the checker's own default floors (SSIM_FLOOR_DEFAULT, PSNR_FLOOR_DB_DEFAULT,
+//    training/config.py), because a lower number would loosen the floor a size-target output gets even when quality is
+//    null. SSIM is at most 1 by definition; a PSNR above any real result only makes the check fail, which is safe.
+export const SPEC_TOLERANCE_S_MAX = 0.5;
+export const SPEC_SSIM_MAX = 1;
 export const ORIENTATION_MAX_RATIO = 0.75;
 export const ORIENTATION_MIN_GAP = 4.0;
 
