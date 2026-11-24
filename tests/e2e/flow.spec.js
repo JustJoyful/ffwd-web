@@ -115,7 +115,7 @@ for (const [id, chore, opts] of [
 
     // 5. Download: a real mp4 with the expected name.
     const downloading = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download model" }).click();
+    await page.getByRole("button", { name: "Download", exact: true }).click();
     const download = await downloading;
     expect(download.suggestedFilename()).toBe(chore.download);
     const path = testInfo.outputPath(chore.download);
@@ -124,7 +124,7 @@ for (const [id, chore, opts] of [
     expect(bytes.length).toBeGreaterThan(10_000);
     expect(bytes.subarray(4, 8).toString("latin1")).toBe("ftyp");
     await expect(
-      page.getByRole("button", { name: "Downloaded" }),
+      page.getByRole("button", { name: /^Download(ed| started)$/ }),
     ).toBeVisible();
 
     // 6. The command is closed until asked for, shows real file names and the flags the script used; Escape closes it.

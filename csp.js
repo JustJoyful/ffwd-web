@@ -20,6 +20,9 @@ export function buildCsp({ modelUrl, analyticsHost, dev = false }) {
   const model = origin(modelUrl ?? "");
   const connect = [
     "'self'",
+    // blob: because ffmpeg.wasm and wllama fetch their own wasm back from a blob URL they made from our own files
+    // (found by running the e2e suite under this policy: without it the video engine never starts).
+    "blob:",
     model,
     // A Hugging Face download is redirected to its file CDN; a redirect target must be allowed too. NOT verified on our own
     // file (it is not public yet): confirm the real redirect host and tighten this when it is.

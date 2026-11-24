@@ -7,7 +7,7 @@ describe("buildCsp (review S5)", () => {
   test("connect-src is self plus the model host; no analytics host unless analytics is on", () => {
     const c = buildCsp({ modelUrl: "https://models.example.org/a/m.gguf" });
     expect(dir(c, "connect-src")).toBe(
-      "connect-src 'self' https://models.example.org",
+      "connect-src 'self' blob: https://models.example.org",
     );
   });
   test("the analytics host is added only when given", () => {
@@ -16,7 +16,7 @@ describe("buildCsp (review S5)", () => {
       analyticsHost: "https://ph.example.com/i",
     });
     expect(dir(c, "connect-src")).toBe(
-      "connect-src 'self' https://m.example.org https://ph.example.com",
+      "connect-src 'self' blob: https://m.example.org https://ph.example.com",
     );
   });
   test("a Hugging Face model also allows its CDN redirect hosts", () => {
@@ -27,7 +27,7 @@ describe("buildCsp (review S5)", () => {
   });
   test("no model URL: self only; the fixed directives are always there; no script-src", () => {
     const c = buildCsp({});
-    expect(dir(c, "connect-src")).toBe("connect-src 'self'");
+    expect(dir(c, "connect-src")).toBe("connect-src 'self' blob:");
     for (const d of [
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -40,7 +40,7 @@ describe("buildCsp (review S5)", () => {
   });
   test("a bad URL adds nothing", () => {
     expect(dir(buildCsp({ modelUrl: "nonsense" }), "connect-src")).toBe(
-      "connect-src 'self'",
+      "connect-src 'self' blob:",
     );
   });
 });
