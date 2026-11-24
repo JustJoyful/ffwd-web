@@ -162,6 +162,29 @@ const page = ctx.pages()[0] ?? (await ctx.newPage());
 // tests/e2e/app-driver.js).
 await page.addInitScript(() => {
   delete globalThis.showSaveFilePicker;
+  // main-thread heartbeat: the longest gap between two 50 ms ticks says whether the page ever froze (the first-visit
+  // check must not freeze it, or the "this takes a while" notice could not even be drawn)
+  let last = performance.now();
+  globalThis.__hb = { maxGapMs: 0, ticks: 0 };
+  // what the first-check notice said and when, recorded IN the page: during a WebGPU check the browser's remote-control
+  // channel can stall for seconds (measured), so polling from outside would miss a notice the person did see
+  globalThis.__check = [];
+  new MutationObserver(() => {
+    const el = document.querySelector("[data-check]");
+    const step = el?.getAttribute("data-check") ?? null;
+    if (step && globalThis.__check.at(-1)?.step !== step)
+      globalThis.__check.push({
+        step,
+        at: new Date().toISOString(),
+        text: el.innerText.slice(0, 300),
+      });
+  }).observe(document, { subtree: true, childList: true, attributes: true });
+  setInterval(() => {
+    const n = performance.now();
+    globalThis.__hb.maxGapMs = Math.max(globalThis.__hb.maxGapMs, n - last);
+    globalThis.__hb.ticks += 1;
+    last = n;
+  }, 50);
 });
 const report = {
   app: APP,
@@ -295,21 +318,43 @@ console.log("adapter:", JSON.stringify(adapterInfo.adapter));
 
 /** Poll the page for a selector from now on: whether it ever appeared, when, and what it said. */
 const watchFor = (selector) => {
-  const r = { seen: false, firstAt: null, text: null };
+  const r = {
+    seen: false,
+    firstAt: null,
+    text: null,
+    zone: [],
+    samples: 0,
+    maxGapMs: 0,
+  };
+  let last = Date.now();
   const t = setInterval(async () => {
     try {
-      if (!r.seen && (await page.locator(selector).count())) {
+      // one in-page read (no auto-waiting): what the model area says now, and whether the selector matches
+      const x = await page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        return {
+          zone: (document.querySelector(".modelzone")?.innerText ?? "").slice(
+            0,
+            160,
+          ),
+          hit: el ? el.innerText.slice(0, 400) : null,
+        };
+      }, selector);
+      r.samples += 1;
+      r.maxGapMs = Math.max(r.maxGapMs, Date.now() - last);
+      last = Date.now();
+      // each time the model area changed: evidence of what the person saw while waiting
+      if (x.zone !== r.zone.at(-1)?.text)
+        r.zone.push({ at: new Date().toISOString(), text: x.zone });
+      if (!r.seen && x.hit !== null) {
         r.seen = true;
         r.firstAt = new Date().toISOString();
-        r.text = (await page.locator(selector).first().innerText()).slice(
-          0,
-          400,
-        );
+        r.text = x.hit;
       }
     } catch {
       /* the page is navigating */
     }
-  }, 400);
+  }, 300);
   return { r, stop: () => clearInterval(t) };
 };
 const verdictFromStorage = () =>
@@ -320,11 +365,28 @@ const verdictFromStorage = () =>
         .map((k) => [k, JSON.parse(localStorage.getItem(k))]),
     ),
   );
-/** The model is ready when no progress bar and no check notice is left and the path notice is up. */
+/**
+ * The model is ready when no progress bar and no check notice is left and the path notice shows a MEASURED wait (before
+ * the model starts the notice shows the capability guess, with no measurement behind it).
+ */
 const waitReady = async (timeout) => {
-  await expect(page.getByRole("progressbar")).toHaveCount(0, { timeout });
-  await expect(page.locator("[data-check]")).toHaveCount(0, { timeout });
-  await expect(page.locator("[data-path]").first()).toBeVisible({ timeout });
+  try {
+    await expect(page.getByRole("progressbar")).toHaveCount(0, { timeout });
+    await expect(page.locator("[data-check]")).toHaveCount(0, { timeout });
+    await expect(page.locator('[data-wait="measured"]').first()).toBeVisible({
+      timeout,
+    });
+  } catch (e) {
+    // say what the person would be looking at, not just that a wait ran out
+    const zone = await page
+      .locator(".modelzone")
+      .innerText({ timeout: 2000 })
+      .catch(() => "(no model area)");
+    throw new Error(
+      `model not ready in ${timeout} ms; the model area says: ${zone.replace(/\s+/g, " ")}`,
+      { cause: e },
+    );
+  }
 };
 const pathNotice = async () => ({
   path: await page.locator("[data-path]").first().getAttribute("data-path"),
@@ -369,12 +431,16 @@ await step(
     const t0 = Date.now();
     const check = watchFor("[data-check]");
     try {
-      await waitReady(1_200_000); // an Intel first check can take minutes
+      await waitReady(VARIANT === "intel" ? 1_200_000 : 300_000); // an Intel first check can take minutes
     } finally {
       check.stop();
     }
     const notice = await pathNotice();
+    const hb = await page.evaluate(() => globalThis.__hb);
+    check.r.inPage = await page.evaluate(() => globalThis.__check);
+    check.r.seen = check.r.seen || check.r.inPage.length > 0;
     firstVisit = {
+      mainThread: { maxGapMs: Math.round(hb.maxGapMs), ticks: hb.ticks },
       loadSeconds: (Date.now() - t0) / 1000,
       sawCheckNotice: check.r,
       notice,
@@ -482,6 +548,8 @@ await step(
       check.stop();
     }
     const notice = await pathNotice();
+    check.r.inPage = await page.evaluate(() => globalThis.__check);
+    check.r.seen = check.r.seen || check.r.inPage.length > 0;
     if (check.r.seen)
       throw new Error("the first-check notice came back on the second visit");
     if (notice.path !== firstVisit?.notice.path)
