@@ -7,6 +7,7 @@ import { PATH_CHOICE } from "./config.js";
 
 const PREFIX = "ffwd:path:v1:";
 const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
 
 /**
  * @typedef {import("./contract.js").Bench} Bench
@@ -51,7 +52,19 @@ export function readVerdict(key, { storage, now = Date.now } = {}) {
       (v.path !== "webgpu" || (v.webgpu === "ok" && v.canary === "pass")) &&
       (v.webgpu !== "broken" || (v.path === "cpu" && v.why !== null));
     if (!ok) return null;
-    return now() - v.at > PATH_CHOICE.cacheTtlDays * DAY_MS ? null : v;
+    // A runtime-safety-net verdict (why "replies") lasts hours, a canary or speed verdict days. A date in the future
+    // (a clock that jumped back, a hand-edited entry) would never expire, so it counts as expired too.
+    const life =
+      v.why === "replies"
+        ? PATH_CHOICE.runtimeVerdictHours * HOUR_MS
+        : PATH_CHOICE.cacheTtlDays * DAY_MS;
+    const age = now() - v.at;
+    if (age > life || age < -DAY_MS) {
+      // Remove it, so the stored adapter description does not outlive its lifetime (the privacy page says how long).
+      (storage ?? globalThis.localStorage)?.removeItem?.(key);
+      return null;
+    }
+    return v;
   } catch {
     return null;
   }

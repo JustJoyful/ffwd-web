@@ -150,4 +150,39 @@ describe("read and write", () => {
       }),
     ).toBeNull();
   });
+
+  test("a verdict from the runtime safety net lasts 24 hours, not 30 days (review S8)", () => {
+    const storage = mem();
+    const key = cacheKey(NV, SHA);
+    const replies = { ...BROKEN, canary: "pass", why: "replies" };
+    writeVerdict(key, replies, { storage, now: () => 0 });
+    const hour = 3_600_000;
+    expect(readVerdict(key, { storage, now: () => 23 * hour })).not.toBeNull();
+    expect(readVerdict(key, { storage, now: () => 25 * hour })).toBeNull();
+    // the canary's own verdict keeps the long lifetime
+    writeVerdict(key, BROKEN, { storage, now: () => 0 });
+    expect(readVerdict(key, { storage, now: () => 25 * hour })).not.toBeNull();
+    expect(
+      readVerdict(key, { storage, now: () => 29 * 24 * hour }),
+    ).not.toBeNull();
+    expect(readVerdict(key, { storage, now: () => 31 * 24 * hour })).toBeNull();
+  });
+  test("an expired entry is removed, so the stored device description does not outlive its lifetime", () => {
+    const storage = { ...mem(), removeItem: (k) => storage.m.delete(k) };
+    const key = cacheKey(NV, SHA);
+    writeVerdict(key, OK, { storage, now: () => 0 });
+    expect(
+      readVerdict(key, { storage, now: () => 40 * 86_400_000 }),
+    ).toBeNull();
+    expect(storage.m.has(key)).toBe(false);
+  });
+  test("an entry dated in the future does not live forever (review N2)", () => {
+    const storage = mem();
+    const key = cacheKey(NV, SHA);
+    writeVerdict(key, OK, { storage, now: () => 10 * 86_400_000 });
+    expect(readVerdict(key, { storage, now: () => 0 })).toBeNull();
+    expect(
+      readVerdict(key, { storage, now: () => 9.5 * 86_400_000 }),
+    ).not.toBeNull(); // a small clock skew is fine
+  });
 });

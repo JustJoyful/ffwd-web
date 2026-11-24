@@ -31,6 +31,11 @@ export const PATH_CHOICE = {
   invalidRepliesToSwitch: 2,
   // A verdict older than this is checked again, so a driver or browser update can win a device back.
   cacheTtlDays: 30,
+  // The verdict the runtime safety net writes (two unreadable replies in a row) lasts one day, not 30. Such replies also
+  // come from a healthy graphics chip (a reply cut at the token cap, one bad turn), and a wrong "broken" costs about
+  // 3.7x slower steps (capability.js MODEL_TURN_SECONDS), so it must not stick for a month. The canary's verdict is
+  // measured on a fixed prompt and keeps the long lifetime.
+  runtimeVerdictHours: 24,
   // What one model step costs, for choosing the faster path and for the wait estimate. From the browser row (900 tasks,
   // reports/2026-11-23-phase-1-browser-row): a typical later step reads about 200 new prompt tokens and writes about
   // 60; the first step of a page visit reads the whole prompt (1333 tokens) plus the user turn (about 170).
