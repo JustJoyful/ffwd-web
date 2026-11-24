@@ -53,9 +53,7 @@ describe("the privacy page", () => {
       /keeps a random anonymous ID in your browser's local storage on this device/,
     );
     expect(t).toMatch(/ffwd sets no cookies/);
-    expect(t).toMatch(
-      /ffwd respects it: .*Do Not Track|Do Not Track or Global Privacy Control, ffwd respects it/,
-    );
+    expect(t).toMatch(/Global Privacy Control, ffwd respects it/);
     expect(t).not.toMatch(/ffwd keeps no ID in your browser/);
   });
 });

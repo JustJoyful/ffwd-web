@@ -244,11 +244,11 @@ export default function Privacy() {
             <p className="prose">
               To pick the faster way to run the model, ffwd remembers in your
               browser's local storage a short description of your graphics chip
-              (its maker and model name) and two speed measurements. It stays on
-              your computer and is never sent anywhere. It is forgotten after{" "}
-              {PATH_CHOICE.cacheTtlDays} days, or after{" "}
-              {PATH_CHOICE.runtimeVerdictHours} hours if your graphics chip gave
-              answers ffwd could not read.
+              (its maker and model name), your browser's version number and two
+              speed measurements. It stays on your computer and is never sent
+              anywhere. It is forgotten after {PATH_CHOICE.cacheTtlDays} days,
+              or after {PATH_CHOICE.runtimeVerdictHours} hours if your graphics
+              chip gave answers ffwd could not read.
             </p>
           </section>
 

@@ -1,5 +1,6 @@
 // The per-device verdict on the model's path, kept in localStorage (main thread only: workers have none). Keyed by the
-// GPU adapter and the model's hash, so a new model or another GPU asks again, and aged out after PATH_CHOICE.cacheTtlDays.
+// GPU adapter, the browser's major.minor version and the model's hash, so a new model, another GPU or a browser update
+// (new WebGPU driver path) asks again, and aged out after PATH_CHOICE.cacheTtlDays.
 // Everything is best-effort: storage can be missing (private window, blocked site data), full, or hold nonsense, and in
 // every such case the answer is "no verdict yet" and the page works. Adapter info never leaves this file's key: it is
 // not sent anywhere (analytics only ever sees the coarse path and canary words).
@@ -20,8 +21,19 @@ export const adapterId = (a) =>
     ? [a.vendor, a.architecture, a.description].map((x) => x ?? "").join("|")
     : "none";
 
-export const cacheKey = (adapter, modelSha256) =>
-  `${PREFIX}${String(modelSha256).slice(0, 16)}:${adapterId(adapter)}`;
+/**
+ * The browser's version from the user agent, major.minor only (e.g. "159.0"), "unknown" when it cannot be read. Used in the
+ * cache key only; it stays in this browser's localStorage and is never sent anywhere.
+ */
+export const browserVersion = (ua = globalThis.navigator?.userAgent ?? "") =>
+  // Edge and Opera carry a Chrome/ token too; the last of the known tokens is the product, but any of them moves the version.
+  ua
+    .match(/(?:Edg|OPR|Chrome|Firefox|Version)\/(\d+)\.(\d+)/)
+    ?.slice(1, 3)
+    .join(".") ?? "unknown";
+
+export const cacheKey = (adapter, modelSha256, browser = browserVersion()) =>
+  `${PREFIX}${String(modelSha256).slice(0, 16)}:${browser}:${adapterId(adapter)}`;
 
 const isBench = (b) =>
   b &&
