@@ -94,6 +94,30 @@ export function chipsFromSpec(spec, inputProbe) {
   return [...changed, ...same];
 }
 
+/**
+ * The strictness numbers the plan card keeps out of its main view (tolerance and quality floors), in plain words, for the
+ * "How closely the result is checked" panel. Only values the spec sets appear, so an empty list means no panel.
+ * @param {{ outputs: object[] }} spec a validated spec (the first output, as for the chips)
+ * @returns {string[]}
+ */
+export function strictnessLines(spec) {
+  const o = spec.outputs[0];
+  const lines = [];
+  const tol = o.time?.tolerance_s;
+  if (isSet(tol)) lines.push(`Timing may be off by up to ${tol} s`);
+  const ssim = o.quality?.min_ssim;
+  if (isSet(ssim))
+    lines.push(
+      `Picture quality at least ${ssim} out of 1 (1 means identical to the original)`,
+    );
+  const psnr = o.quality?.min_psnr_db;
+  if (isSet(psnr))
+    lines.push(
+      `Picture noise level no worse than ${psnr} dB (higher is closer)`,
+    );
+  return lines;
+}
+
 // Which FFmpeg flags implement a chip. A flag listed here is highlighted together with the value after it.
 const FILTER = ["-vf", "-filter:v", "-filter_complex", "-s", "-aspect"];
 const CHIP_FLAGS = {

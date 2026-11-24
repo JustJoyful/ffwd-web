@@ -57,7 +57,8 @@ test("a how-to-check list, and the placeholders stay visible until the owner fil
 });
 
 test("the browser-storage choice and Do Not Track are stated", () => {
-  expect(text).toMatch(/ffwd keeps no ID in your browser/);
+  expect(text).toMatch(/random anonymous ID in your browser's local storage/);
+  expect(text).toMatch(/ffwd sets no cookies/);
   expect(text).toMatch(/local storage/i); // the remembered graphics-chip description
-  expect(text).toMatch(/Do Not Track/);
+  expect(text).toMatch(/Do Not Track or Global Privacy Control, ffwd respects it/);
 });

@@ -97,7 +97,7 @@ describe("model_load events", () => {
           cache_hit: false,
           ms: "5 to 15 s",
           model_path: "webgpu",
-          canary: "skipped", // no verdict known yet: the coarse default
+          canary_result: "skipped", // no verdict known yet: the coarse default
         },
       ],
     ]);
@@ -124,7 +124,7 @@ describe("model_load events", () => {
     expect(track.mock.calls[1][1].ms).toBe("under 2 s");
     expect(track.mock.calls[1][1]).toMatchObject({
       model_path: "cpu",
-      canary: "fail",
+      canary_result: "fail",
     });
     // the coarse words are the only place "cpu" may appear: no URL, size, speed or error text
     expect(

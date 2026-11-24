@@ -27,14 +27,14 @@ export const EVENTS = {
   site_visit: ["landing_page", "referrer_domain"],
   capability_checked: ["webgpu", "fail_reason"],
   model_load_started: ["model_version", "cache_hit", "ms"],
-  // 2026-11-24: model_path (which hardware the model ended up on) and canary (what the first-visit check said about the
+  // 2026-11-24: model_path (which hardware the model ended up on) and canary_result (what the first-visit check said about the
   // graphics path) are coarse words, never adapter names. ARCHITECTURE section 9 in the model repo does not list them yet.
   model_load_completed: [
     "model_version",
     "cache_hit",
     "ms",
     "model_path",
-    "canary",
+    "canary_result",
   ],
   edit_started: ["families", "mode", "input_size_bucket", "n_files_bucket"],
   spec_confirmed: ["edited_by_user"],
@@ -80,7 +80,7 @@ const ENUMS = {
   category: [],
   mode: ["browser", "helper"],
   model_path: ["webgpu", "cpu"],
-  canary: ["pass", "fail", "skipped"],
+  canary_result: ["pass", "fail", "skipped"],
 };
 // The one string that cannot be a fixed list: the referring site's domain (the bridge reduces it to a hostname). It must
 // still look like one, so a request or file name cannot ride in it.
@@ -182,6 +182,7 @@ async function load() {
       capture_pageview: false,
       capture_pageleave: false,
       persistence: ANALYTICS_PERSISTENCE,
+      respect_dnt: RESPECT_DNT_GPC,
       person_profiles: "identified_only",
       advanced_disable_flags: true,
       disable_surveys: true,

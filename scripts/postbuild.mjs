@@ -43,6 +43,8 @@ writeFileSync(
   "build/build-info.json",
   JSON.stringify(
     {
+      // the version this build was made with (app/model/config.js reads the same package.json field)
+      appVersion: JSON.parse(readFileSync("package.json", "utf8")).version,
       scripted: env.VITE_SCRIPTED_POLICY === "1",
       modelUrl: env.VITE_MODEL_MANIFEST_URL || null,
       modelManifestSha256: env.VITE_MODEL_MANIFEST_SHA256 || null,

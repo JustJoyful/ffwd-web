@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import { PATH_CHOICE } from "../../app/model/config.js";
 import {
   adapterId,
+  browserVersion,
   cacheKey,
   readVerdict,
   writeVerdict,
@@ -42,6 +43,7 @@ describe("the key", () => {
     expect(cacheKey(NV, SHA)).toBe(cacheKey({ ...NV }, SHA));
     expect(cacheKey(NV, SHA)).not.toBe(cacheKey(INTEL, SHA));
     expect(cacheKey(NV, SHA)).not.toBe(cacheKey(NV, "a".repeat(64)));
+    expect(cacheKey(NV, SHA, "159.0")).not.toBe(cacheKey(NV, SHA, "160.0"));
   });
   test("a device with no real adapter (none, or a software fallback) shares the key 'none'", () => {
     expect(adapterId(null)).toBe("none");
@@ -185,4 +187,18 @@ describe("read and write", () => {
       readVerdict(key, { storage, now: () => 9.5 * 86_400_000 }),
     ).not.toBeNull(); // a small clock skew is fine
   });
+});
+
+describe("browserVersion", () => {
+  test.each([
+    [
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/159.0.7234.12 Safari/537.36",
+      "159.0",
+    ],
+    [
+      "Mozilla/5.0 (X11; Linux x86_64; rv:140.2) Gecko/20100101 Firefox/140.2",
+      "140.2",
+    ],
+    ["curious", "unknown"],
+  ])("%s", (ua, want) => expect(browserVersion(ua)).toBe(want));
 });

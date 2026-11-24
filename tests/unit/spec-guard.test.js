@@ -18,13 +18,13 @@ const out = (o = {}) => ({
 
 describe("specBoundsError (review S3: numbers the plan card does not show)", () => {
   test.each([
-    [{ time: { start_s: 1, end_s: 3, tolerance_s: 0.5 } }, null],
+    [{ time: { start_s: 1, end_s: 3, tolerance_s: 0.2 } }, null],
     [{ time: { start_s: 1, end_s: 3, tolerance_s: 0.1 } }, null],
     [{ time: { tolerance_s: null } }, null],
     [{ quality: { min_ssim: 0.9, min_psnr_db: 28 } }, null],
     [{ quality: { min_ssim: 1, min_psnr_db: 40 } }, null],
     [{ time: { tolerance_s: 60 } }, /tolerance_s/],
-    [{ time: { tolerance_s: 0.51 } }, /tolerance_s/],
+    [{ time: { tolerance_s: 0.21 } }, /tolerance_s/],
     [{ time: { tolerance_s: -1 } }, /tolerance_s/],
     [{ quality: { min_ssim: 0.1 } }, /min_ssim/],
     [{ quality: { min_ssim: 0.899 } }, /min_ssim/],

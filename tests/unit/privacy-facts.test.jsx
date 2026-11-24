@@ -1,5 +1,5 @@
 // Review S6: the privacy page states the facts the code creates: the model host sees the IP, the device description is
-// remembered (and for how long), and the analytics id is not stored while persistence is "memory".
+// remembered (and for how long), and the analytics id is a random localStorage id, no cookies.
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
@@ -47,9 +47,13 @@ describe("the privacy page", () => {
     expect(t).toContain(`after ${PATH_CHOICE.runtimeVerdictHours} hours`);
   });
   test("what it says about the analytics id follows the persistence setting", () => {
-    expect(ANALYTICS_PERSISTENCE).toBe("memory");
+    expect(ANALYTICS_PERSISTENCE).toBe("localStorage");
     const t = text();
-    expect(t).toMatch(/ffwd keeps no ID in your browser/);
-    expect(t).not.toMatch(/keeps a random ID in your browser's local storage/);
+    expect(t).toMatch(
+      /keeps a random anonymous ID in your browser's local storage on this device/,
+    );
+    expect(t).toMatch(/ffwd sets no cookies/);
+    expect(t).toMatch(/Global Privacy Control, ffwd respects it/);
+    expect(t).not.toMatch(/ffwd keeps no ID in your browser/);
   });
 });

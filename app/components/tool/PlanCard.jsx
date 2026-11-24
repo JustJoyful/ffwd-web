@@ -3,9 +3,16 @@ import { useEffect, useRef, useState } from "react";
 /**
  * The plan the person confirms: chips for what will change, then "Run it" or "Change". Focus moves to "Run it" when
  * a plan is proposed, so Enter is enough. Chips arrive 60 ms apart, at most six steps (CSS reads --i).
- * @param {{ chips: Array<[string, string, 1?]>, state: "proposed" | "edited" | "confirmed", onRun(): void, onChange(): void }} props
+ * `strictness` (tool/chips.js strictnessLines) goes in a closed native <details>; no lines, no panel.
+ * @param {{ chips: Array<[string, string, 1?]>, strictness?: string[], state: "proposed" | "edited" | "confirmed", onRun(): void, onChange(): void }} props
  */
-export default function PlanCard({ chips, state, onRun, onChange }) {
+export default function PlanCard({
+  chips,
+  strictness = [],
+  state,
+  onRun,
+  onChange,
+}) {
   const run = useRef(null);
   const [on, setOn] = useState(false);
   useEffect(() => {
@@ -29,6 +36,14 @@ export default function PlanCard({ chips, state, onRun, onChange }) {
           </li>
         ))}
       </ul>
+      {strictness.length > 0 && (
+        <details className="how">
+          <summary>How closely the result is checked</summary>
+          {strictness.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </details>
+      )}
       {state !== "confirmed" && (
         <div className="plan__actions">
           <button

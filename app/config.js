@@ -9,13 +9,13 @@ export const SITE_URL =
   import.meta.env?.VITE_SITE_URL ?? "https://ffwd.example";
 
 // Analytics (ARCHITECTURE §9, WEB_ARCHITECTURE §10). OPEN OWNER QUESTIONS, defaults below:
-// - ANALYTICS_PERSISTENCE is "memory" (review S6): PostHog's random id lives in the page and is gone when it closes, so
-//   nothing is written to localStorage or a cookie before any consent. Cost: no returning-user (30/60-day) numbers, and
-//   a visit that goes from the home page to /app (a full page load) counts as two anonymous visitors. "localStorage"
-//   brings both back but writes an id with no banner; whether to switch is the owner's decision, and so is turning
-//   analytics on at all (it stays off until VITE_POSTHOG_KEY is set at build time).
-// - RESPECT_DNT_GPC: when the browser sends Do Not Track or Global Privacy Control, PostHog is never loaded.
-export const ANALYTICS_PERSISTENCE = "memory";
+// - ANALYTICS_PERSISTENCE is "localStorage" (owner decision 2026-11-25): PostHog's random anonymous id is kept in this
+//   browser's localStorage so a returning visitor is counted once. Never a cookie: posthog-js writes cookies only for
+//   persistence "cookie" or "localStorage+cookie" (the default), so this value is the cookie switch; the e2e spec checks
+//   document.cookie stays empty. Analytics stays off until VITE_POSTHOG_KEY is set at build time.
+// - RESPECT_DNT_GPC: when the browser sends Do Not Track or Global Privacy Control, PostHog is never loaded (allowed()
+//   in lib/analytics.js), and it is also passed to posthog-js as respect_dnt, which honours both signals itself.
+export const ANALYTICS_PERSISTENCE = "localStorage";
 export const RESPECT_DNT_GPC = true;
 // PostHog loads after the first pointer, key or scroll event, or after this many ms of idle, whichever comes first.
 export const ANALYTICS_IDLE_MS = 3000;

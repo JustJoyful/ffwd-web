@@ -1,14 +1,15 @@
 import { protocol_version } from "../../protocol/PIN.json";
+import { version as packageVersion } from "../../package.json";
 
 // What the app is BUILT FOR (D-053). The model itself (file, size, sha256, context, KV cache, token cap, canary) is not
 // here: it is read at run time from the release manifest ffwd-model.json (manifest.js) and refused when it does not
 // match these two values. ONE source each; nothing else hard-codes them.
-//   APP_VERSION: the version of this site, compared with the manifest's min_app_version. It is a constant, not
-//     package.json's "version" (this repo is private and its package.json version is not a release number); raise it by
-//     hand when a release needs a newer app, and say so in DECISIONS.md.
+//   APP_VERSION: the version of this site, compared with the manifest's min_app_version. It is package.json's "version"
+//     (a named JSON import, so Vite keeps only that string); raise it there when a release needs a newer app, and say
+//     so in DECISIONS.md. `pnpm check:release` checks the build was made with the current value.
 //   PROTOCOL_VERSION: the protocol this site was synced to, read from protocol/PIN.json (scripts/sync-protocol.mjs), so a
 //     sync that bumps the protocol changes what the site accepts without a second edit.
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = packageVersion;
 export const PROTOCOL_VERSION = protocol_version;
 
 // Where the manifest comes from: build-time values, so a build names ONE pinned model release.

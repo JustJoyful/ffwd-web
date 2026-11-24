@@ -207,8 +207,9 @@ export default function Privacy() {
               {ANALYTICS_PERSISTENCE === "localStorage" ? (
                 <p>
                   To tell a returning browser from a new one, ffwd keeps a
-                  random ID in your browser's local storage. It is not linked to
-                  who you are. Clearing your browser's site data removes it.
+                  random anonymous ID in your browser's local storage on this
+                  device. It is not linked to who you are, and ffwd sets no
+                  cookies. Clearing your browser's site data removes it.
                 </p>
               ) : (
                 <p>
@@ -219,7 +220,8 @@ export default function Privacy() {
               {RESPECT_DNT_GPC && (
                 <p>
                   If your browser sends Do Not Track or Global Privacy Control,
-                  ffwd does not load the counting service at all.
+                  ffwd respects it: the counting service is not loaded at all,
+                  so no ID is created.
                 </p>
               )}
             </div>
@@ -242,11 +244,11 @@ export default function Privacy() {
             <p className="prose">
               To pick the faster way to run the model, ffwd remembers in your
               browser's local storage a short description of your graphics chip
-              (its maker and model name) and two speed measurements. It stays on
-              your computer and is never sent anywhere. It is forgotten after{" "}
-              {PATH_CHOICE.cacheTtlDays} days, or after{" "}
-              {PATH_CHOICE.runtimeVerdictHours} hours if your graphics chip gave
-              answers ffwd could not read.
+              (its maker and model name), your browser's version number and two
+              speed measurements. It stays on your computer and is never sent
+              anywhere. It is forgotten after {PATH_CHOICE.cacheTtlDays} days,
+              or after {PATH_CHOICE.runtimeVerdictHours} hours if your graphics
+              chip gave answers ffwd could not read.
             </p>
           </section>
 

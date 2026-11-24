@@ -24,7 +24,7 @@ const ALLOWED = {
     "cache_hit",
     "ms",
     "model_path",
-    "canary",
+    "canary_result",
   ],
   edit_started: ["families", "mode", "input_size_bucket", "n_files_bucket"],
   spec_confirmed: ["edited_by_user"],
@@ -88,6 +88,15 @@ function eventsOf(buffer) {
   return (Array.isArray(json) ? json : [json]).flatMap((j) => j.batch ?? [j]);
 }
 
+/** PostHog's keys in either storage and the cookie string: the id may exist only when analytics is on. */
+const storedPostHog = (page) =>
+  page.evaluate(() => ({
+    keys: [...Object.keys(localStorage), ...Object.keys(sessionStorage)].filter(
+      (k) => /^ph_|posthog/i.test(k),
+    ),
+    cookie: document.cookie,
+  }));
+
 test("the trim flow sends only allowed events, keys and values to analytics", async ({
   browser,
 }) => {
@@ -149,12 +158,15 @@ test("the trim flow sends only allowed events, keys and values to analytics", as
     events.find((e) => e.event === "site_visit").properties.landing_page,
   ).toBe("app");
 
-  // persistence is "memory": PostHog's id is not written to localStorage, sessionStorage or a cookie (review S6).
+  // persistence is "localStorage": PostHog's anonymous id may sit in localStorage (analytics is on in this spec), but
+  // never in a cookie.
   const stored = await page.evaluate(() => ({
-    keys: [...Object.keys(localStorage), ...Object.keys(sessionStorage)],
+    session: Object.keys(sessionStorage),
+    local: Object.keys(localStorage),
     cookie: document.cookie,
   }));
-  expect(stored.keys.filter((k) => /^ph_|posthog/i.test(k))).toEqual([]);
+  // the id key is in localStorage (PostHog also keeps per-tab window ids in sessionStorage; those are not an identity)
+  expect(stored.local.some((k) => /^ph_.*_posthog$/.test(k))).toBe(true);
   expect(stored.cookie).toBe("");
 
   // Nothing the person typed, chose or opened is anywhere in what was sent: bodies, URLs, or the files they name.
@@ -191,5 +203,16 @@ test("Do Not Track: PostHog is never loaded and nothing is sent", async ({
   await page.mouse.click(5, 5);
   await page.waitForTimeout(3500);
   expect(requests).toEqual([]);
+  expect(await storedPostHog(page)).toEqual({ keys: [], cookie: "" });
+  await context.close();
+});
+
+test("analytics off (no key): no PostHog id in storage and no cookie", async ({
+  browser,
+}) => {
+  const { context, page } = await openApp(browser, CHORES.trim.script);
+  await page.mouse.click(5, 5);
+  await page.waitForTimeout(3500);
+  expect(await storedPostHog(page)).toEqual({ keys: [], cookie: "" });
   await context.close();
 });

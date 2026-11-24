@@ -124,6 +124,11 @@ describe("fail closed: each reason is refused with a plain sentence", () => {
     );
     expect(manifestProblem(REAL_MANIFEST)).toBeNull();
   });
+  test("APP_VERSION is package.json's version (one source)", () => {
+    expect(APP_VERSION).toBe(
+      JSON.parse(readFileSync("package.json", "utf8")).version,
+    );
+  });
   test("semver order", () => {
     expect(semverAtLeast("1.0.0", "1.0.0")).toBe(true);
     expect(semverAtLeast("1.2.0", "1.10.0")).toBe(false);

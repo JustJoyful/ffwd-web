@@ -7,6 +7,7 @@ import {
   truncateSync,
   writeFileSync,
 } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import {
@@ -34,6 +35,7 @@ function build(edit = () => {}) {
   return dir;
 }
 const GOOD = {
+  appVersion: JSON.parse(readFileSync("package.json", "utf8")).version,
   modelUrl: "https://huggingface.co/x/ffwd-0.6b/resolve/v1.0.0/ffwd-model.json",
   modelManifestSha256: "a".repeat(64),
   scripted: false,
@@ -45,6 +47,11 @@ const check = (dir, info = GOOD, extra = {}) =>
 describe("releaseProblems", () => {
   test("a build with everything in place passes", () => {
     expect(check(build())).toEqual([]);
+  });
+  test("a build made with another app version than package.json's fails", () => {
+    expect(check(build(), { ...GOOD, appVersion: "0.0.1" }).join("\n")).toMatch(
+      /app version 0\.0\.1 but package\.json says/,
+    );
   });
   test("no manifest URL, a non-https URL, a moving or unpinned revision and a local URL each fail", () => {
     const dir = build();
@@ -79,7 +86,7 @@ describe("releaseProblems", () => {
   });
   test("a stamped LOCAL TEST build always fails, and only for that reason (even with otherwise good facts)", () => {
     const p = check(build(), {
-      modelUrl: "http://localhost:8765/ffwd-model.json",
+      ...GOOD,
       modelManifestSha256: "a".repeat(64),
       localTest: true,
     });

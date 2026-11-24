@@ -63,6 +63,8 @@ function make({ webgpu = "good", speed = SPEED, onCompletion } = {}) {
       tokenize: async (t) =>
         t === "WEBGPU_TEXT" ? (webgpu === "good" ? GOOD : GARBAGE) : GOOD,
       createCompletion: async (o) => {
+        if (path === "webgpu" && webgpu === "oom")
+          throw new Error("out of memory");
         const isCanary = o.prompt === MODEL.canary.prompt;
         log.push(`${isCanary ? "canary" : "bench"}#${id}:${path}`);
         onCompletion?.(id, path, isCanary);
@@ -187,6 +189,19 @@ describe("canary fail", () => {
 
   test("a graphics engine that cannot even start counts as a failed canary, and the job still gets a model", async () => {
     const t = make({ webgpu: "throws" });
+    await t.host.handle(INIT);
+    expect(t.posted.some((m) => m.type === "error")).toBe(false);
+    expect(ready(t.posted)).toMatchObject({
+      path: "cpu",
+      selection: { canary: "fail", matched: 0 },
+    });
+    expect(t.peak()).toBe(1);
+  });
+});
+
+describe("an engine error during the canary", () => {
+  test("an out-of-memory throw while answering the canary prompt is a canary fail, and the job still gets the processor", async () => {
+    const t = make({ webgpu: "oom" });
     await t.host.handle(INIT);
     expect(t.posted.some((m) => m.type === "error")).toBe(false);
     expect(ready(t.posted)).toMatchObject({

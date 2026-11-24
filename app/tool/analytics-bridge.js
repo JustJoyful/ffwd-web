@@ -41,7 +41,7 @@ function bindModelAnalytics(model, track) {
         ms: bucketLoadMs(s.loadMs),
         // coarse words only: where the model runs and what the graphics check said (never the adapter or the speeds)
         model_path: s.path,
-        canary: s.canary ?? "skipped",
+        canary_result: s.canary ?? "skipped",
       });
     }
   };
