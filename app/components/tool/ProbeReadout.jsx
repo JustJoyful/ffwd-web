@@ -13,6 +13,10 @@ const CODEC = {
 export const UNREADABLE_TEXT =
   "This video can't be read. It may be damaged or in a format ffwd doesn't support. Try another file.";
 
+// The engine that reads videos did not start. Said plainly so the person does not blame the file.
+export const ENGINE_TEXT =
+  "ffwd's video engine didn't start, so it can't read this video. Nothing is wrong with your file. Reload the page and try again.";
+
 const sizeText = (n) =>
   n >= 1_000_000
     ? `${+(n / 1_000_000).toFixed(1)} MB`
@@ -41,7 +45,7 @@ export function probeRows(probe, name = "") {
 }
 
 /**
- * @param {{ name: string, size: number, probe: object | null, state: "loading" | "read" | "unreadable" }} props
+ * @param {{ name: string, size: number, probe: object | null, state: "loading" | "read" | "unreadable" | "engine" }} props
  */
 export default function ProbeReadout({ name, size, probe, state }) {
   return (
@@ -59,6 +63,11 @@ export default function ProbeReadout({ name, size, probe, state }) {
       {state === "unreadable" && (
         <p className="readout__note readout__note--bad" role="alert">
           {UNREADABLE_TEXT}
+        </p>
+      )}
+      {state === "engine" && (
+        <p className="readout__note readout__note--bad" role="alert">
+          {ENGINE_TEXT}
         </p>
       )}
       {state === "read" && probe && (

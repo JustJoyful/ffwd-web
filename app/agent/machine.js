@@ -38,6 +38,7 @@ import { MACHINE_REASON, MODEL_ERROR_TEXT } from "../model/contract.js";
  * @property {boolean} memoryWarning the browser reports less memory than recommended (4 GB up to, not including, 8 GB): runs, with a warning
  * @property {string | null} reason why it ended: run_budget, turn_budget, too_long, model_unavailable, aborted (a typed
  *   model error, see MACHINE_REASON), policy_error (an untyped one), or the model's/device's words
+ * @property {"engine" | null} errorKind "engine": the video engine did not start (not the person's file); null otherwise
  * @property {string | null} error a message for the person (a file that could not be read, MODEL_ERROR_TEXT for a typed
  *   model error, the raw text of an untyped policy error)
  *
@@ -64,6 +65,7 @@ const initial = () => ({
   question: null,
   reason: null,
   error: null,
+  errorKind: null,
   path: null,
   notice: null,
   memoryWarning: false,
@@ -284,7 +286,7 @@ export function createMachine(deps) {
         return;
       case "fileChosen":
         if (!FILE_STATES.includes(name)) return;
-        set({ name: "probing", error: null });
+        set({ name: "probing", error: null, errorKind: null });
         try {
           const input = await deps.probeFile(e.file);
           job = null;
@@ -297,7 +299,11 @@ export function createMachine(deps) {
             memoryWarning: state.memoryWarning,
           });
         } catch (err) {
-          set({ name: "ready", error: message(err) });
+          set({
+            name: "ready",
+            error: message(err),
+            errorKind: err?.code === "engine_start" ? "engine" : null,
+          });
         }
         return;
       case "requestSubmitted":

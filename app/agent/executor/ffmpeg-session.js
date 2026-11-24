@@ -6,7 +6,6 @@
 //    When the watchdog fires the worker is killed and the in-memory files go with it (a command that needs an
 //    earlier file then fails with FFmpeg's "No such file" text rather than hanging).
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { toBlobURL } from "@ffmpeg/util";
 import {
   FFMPEG_CORE_BASE,
   RUN_TIMEOUT_MS,
@@ -14,6 +13,23 @@ import {
 } from "../config.js";
 
 /** @typedef {{ code: number, log: string, timedOut: boolean }} Exec */
+
+/** The video engine itself did not start (core file missing, worker or memory failure): not the person's video. */
+export class EngineStartError extends Error {
+  code = "engine_start";
+  /** @param {string} message @param {unknown} [cause] */
+  constructor(message, cause) {
+    super(message, { cause });
+    this.name = "EngineStartError";
+  }
+}
+
+/** Fetch a core file into a blob URL. @ffmpeg/util's toBlobURL never looks at response.ok, so a 404 page became "the core". */
+async function coreBlobURL(url, type) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  return URL.createObjectURL(new Blob([await res.arrayBuffer()], { type }));
+}
 
 export class FfmpegSession {
   /** @param {{ coreBase?: string }} [opts] */
@@ -39,13 +55,21 @@ export class FfmpegSession {
     if (this.ff?.loaded) return this.ff;
     if (!this.loading) {
       const ff = new FFmpeg();
-      const url = (f, type) => toBlobURL(`${this.coreBase}/${f}`, type);
+      const url = (f, type) => coreBlobURL(`${this.coreBase}/${f}`, type);
       this.loading = (async () => {
-        await ff.load({
-          coreURL: await url("ffmpeg-core.js", "text/javascript"),
-          wasmURL: await url("ffmpeg-core.wasm", "application/wasm"),
-          workerURL: await url("ffmpeg-core.worker.js", "text/javascript"),
-        });
+        try {
+          await ff.load({
+            coreURL: await url("ffmpeg-core.js", "text/javascript"),
+            wasmURL: await url("ffmpeg-core.wasm", "application/wasm"),
+            workerURL: await url("ffmpeg-core.worker.js", "text/javascript"),
+          });
+        } catch (e) {
+          ff.terminate();
+          throw new EngineStartError(
+            e instanceof Error ? e.message : String(e),
+            e,
+          );
+        }
         this.ff = ff;
       })().finally(() => {
         this.loading = null;

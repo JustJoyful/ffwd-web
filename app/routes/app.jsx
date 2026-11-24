@@ -204,7 +204,8 @@ export default function App() {
   const showPlan =
     chips.length > 0 &&
     ["awaitingConfirm", "running", "checking", "done", "failed"].includes(name);
-  const unreadable = name === "ready" && Boolean(state.error);
+  const engineFailed = name === "ready" && state.errorKind === "engine";
+  const unreadable = name === "ready" && Boolean(state.error) && !engineFailed;
   const edited = name === "awaitingConfirm" && request.trim() !== state.request;
   const requestLocked = ![
     "checkingCapability",
@@ -297,11 +298,13 @@ export default function App() {
                     state={
                       name === "probing"
                         ? "loading"
-                        : unreadable
-                          ? "unreadable"
-                          : input
-                            ? "read"
-                            : "loading"
+                        : engineFailed
+                          ? "engine"
+                          : unreadable
+                            ? "unreadable"
+                            : input
+                              ? "read"
+                              : "loading"
                     }
                   />
                 )}
