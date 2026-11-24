@@ -15,8 +15,13 @@ writes from the VITE_* values the build was made with.
    value when the host exists, and the CSP connect-src in scripts/postbuild.mjs has to name that host.
    check-release fails on this today, by file name, so it cannot be forgotten.
 
-2. A model URL. VITE_MODEL_URL must be set at build time to an https URL on a public host (not localhost). Without it the
-   page says the model is not published yet. The privacy page names this host from the same value.
+2. The model manifest (D-053). VITE_MODEL_MANIFEST_URL must be set at build time to the https URL of ffwd-model.json at a
+   PINNED Hugging Face tag or 40-hex commit (e.g. https://huggingface.co/<owner>/ffwd-0.6b/resolve/v1.0.0/ffwd-model.json),
+   never main/master/latest, and VITE_MODEL_MANIFEST_SHA256 must be the sha256 of that exact file. The app reads the model
+   file, size, hash and settings from the manifest and refuses (nothing downloaded) on a protocol_version other than
+   protocol/PIN.json's, a min_app_version above APP_VERSION (app/model/config.js), or a prompt/template that differs from the
+   app's own. check:release fails on a missing/unpinned URL, a missing hash, or any build stamped by `pnpm release:local`.
+   Test the exact package first: `pnpm release:local` (see scripts/serve-release.mjs). The privacy page names the host.
 
 3. Analytics are off unless VITE_POSTHOG_KEY is set at build time. check-release fails if a key is in the build, unless
    FFWD_ANALYTICS_ON=1 is set to say the owner decided to switch it on. (Persistence is "memory": see app/config.js.)
