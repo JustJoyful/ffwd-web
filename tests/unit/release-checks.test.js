@@ -86,7 +86,6 @@ describe("releaseProblems", () => {
   });
   test("a stamped LOCAL TEST build always fails, and only for that reason (even with otherwise good facts)", () => {
     const p = check(build(), {
-    const p = check(build(), {
       ...GOOD,
       modelManifestSha256: "a".repeat(64),
       localTest: true,
