@@ -11,7 +11,7 @@ export const MODEL_CASES = readFileSync(
   .split("\n")
   .filter(Boolean)
   .map((l) => JSON.parse(l));
-export const REAL_MANIFEST = MODEL_CASES.find((c) => c.ok).manifest;
+export const REAL_MANIFEST = MODEL_CASES.findLast((c) => c.ok).manifest;
 export const MANIFEST_URL =
   "https://huggingface.co/JustJoyful/ffwd-0.6b/resolve/v1.0.0/ffwd-model.json";
 export const MODEL = {

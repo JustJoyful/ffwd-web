@@ -26,7 +26,7 @@ const cases = (file) =>
 
 // Run here, in Node (the media ones on native ffmpeg: needs ffmpeg and ffprobe, see `nativeSkip`).
 const WIRED = {
-  "validator.jsonl": 39,
+  "validator.jsonl": 54,
   "describe-spec.jsonl": 8,
   "checker-offset.jsonl": 8,
   "checker-frames.jsonl": 9,

@@ -31,9 +31,9 @@ const edit = (fn) => {
 };
 
 describe("conformance/model-manifest.jsonl", () => {
-  test("has the valid case and 13 invalid ones", () => {
-    expect(MODEL_CASES).toHaveLength(14);
-    expect(MODEL_CASES.filter((c) => c.ok)).toHaveLength(1);
+  test("has two valid cases (first upload, then with weights) and 15 invalid ones", () => {
+    expect(MODEL_CASES).toHaveLength(17);
+    expect(MODEL_CASES.filter((c) => c.ok)).toHaveLength(2);
   });
   test.each(MODEL_CASES.map((c) => [c.name, c]))(
     "%s: the app's verdict matches `ok`",
