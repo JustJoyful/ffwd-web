@@ -14,6 +14,14 @@ export const MODEL = {
 // review comes first), so there is NO production URL: a build gets one from VITE_MODEL_URL (a localhost URL in
 // development and in the real-model smoke test), and without it the loader says the model is not published yet.
 export const modelUrl = () => import.meta.env?.VITE_MODEL_URL || null;
+/** The host the model file comes from (the privacy page names it), or null when no URL is set. */
+export const modelHost = () => {
+  try {
+    return new URL(modelUrl() ?? "").hostname || null;
+  } catch {
+    return null;
+  }
+};
 
 // Choosing the path (added 2026-11-24, owner decision): a canary on the graphics path, then a speed test, once per
 // device and model, remembered in localStorage. ONE source for the numbers; each has its reason next to it.

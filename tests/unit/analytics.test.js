@@ -335,7 +335,8 @@ describe("track and the loader", () => {
       disable_session_recording: true,
       ip: false,
       capture_pageview: false,
-      persistence: "localStorage",
+      persistence: "memory",
+      person_profiles: "identified_only",
     });
     expect(typeof opts.before_send).toBe("function");
     expect(ph.capture).toHaveBeenCalledWith(

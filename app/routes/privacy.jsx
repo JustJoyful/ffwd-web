@@ -3,6 +3,7 @@ import "../styles/pages.css";
 import { SiteFooter, SiteNav } from "../components/site/Shell.jsx";
 import { ANALYTICS_PERSISTENCE, RESPECT_DNT_GPC } from "../config.js";
 import { EVENTS, TRANSPORT_KEYS } from "../lib/analytics.js";
+import { MODEL, PATH_CHOICE, modelHost } from "../model/config.js";
 
 // COPY FOR OWNER REVIEW. The ledger table and the "How to check" text come from COPY_PAGE.md section 3. The event
 // list is printed from EVENTS (app/lib/analytics.js), the same object the code sends from, so the page and the code
@@ -175,8 +176,8 @@ export default function Privacy() {
               To receive these counts PostHog also needs a project key and a
               random ID for your browser (
               <Codes items={TRANSPORT_KEYS} />
-              ). Neither says anything about you. ffwd strips everything else
-              PostHog would normally add, such as the address of the page.
+              ). None of these says anything about you. ffwd strips everything
+              else PostHog would normally add, such as the address of the page.
             </p>
           </section>
 
@@ -222,6 +223,32 @@ export default function Privacy() {
                 </p>
               )}
             </div>
+          </section>
+
+          <section id="model-download" aria-labelledby="dl-h">
+            <h2 id="dl-h">Where the model comes from</h2>
+            <p className="prose">
+              The model file ({Math.round(MODEL.bytes / 1e6)} MB) is downloaded
+              once, from{" "}
+              {modelHost() ? <code>{modelHost()}</code> : "the model host"}.
+              That server sees your IP address and your browser type when you
+              download it, as any website does. ffwd sends it no video, no text
+              and no file names. After that the model is kept in your browser
+              and is not downloaded again.
+            </p>
+          </section>
+
+          <section id="device-memory" aria-labelledby="dev-h">
+            <h2 id="dev-h">What else your browser remembers</h2>
+            <p className="prose">
+              To pick the faster way to run the model, ffwd remembers in your
+              browser's local storage a short description of your graphics chip
+              (its maker and model name) and two speed measurements. It stays on
+              your computer and is never sent anywhere. It is forgotten after{" "}
+              {PATH_CHOICE.cacheTtlDays} days, or after{" "}
+              {PATH_CHOICE.runtimeVerdictHours} hours if your graphics chip gave
+              answers ffwd could not read.
+            </p>
           </section>
 
           <section aria-labelledby="ask-h">

@@ -149,6 +149,14 @@ test("the trim flow sends only allowed events, keys and values to analytics", as
     events.find((e) => e.event === "site_visit").properties.landing_page,
   ).toBe("app");
 
+  // persistence is "memory": PostHog's id is not written to localStorage, sessionStorage or a cookie (review S6).
+  const stored = await page.evaluate(() => ({
+    keys: [...Object.keys(localStorage), ...Object.keys(sessionStorage)],
+    cookie: document.cookie,
+  }));
+  expect(stored.keys.filter((k) => /^ph_|posthog/i.test(k))).toEqual([]);
+  expect(stored.cookie).toBe("");
+
   // Nothing the person typed, chose or opened is anywhere in what was sent: bodies, URLs, or the files they name.
   const everything =
     requests
