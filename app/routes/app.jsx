@@ -464,6 +464,7 @@ export default function App() {
                 originalUrl={unreadable ? null : originalUrl}
                 resultUrl={result?.url ?? null}
                 name={file?.name ?? ""}
+                audioOnly={state.spec?.outputs?.[0]?.kind === "audio"}
               />
             </div>
           </div>

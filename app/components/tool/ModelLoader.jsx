@@ -60,7 +60,7 @@ export default function ModelLoader({
             className="btn btn--sm btn--blue"
             onClick={onConsent}
           >
-            {declined ? "Download again" : "Download"}
+            {declined ? "Download model again" : "Download model"}
           </button>
           {!declined && (
             <button

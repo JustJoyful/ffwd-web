@@ -100,7 +100,7 @@ describe("/app while the model is not ready", () => {
     const modelActions = { consent: vi.fn(), decline: vi.fn(), retry: vi.fn() };
     setTool({}, { phase: "needsConsent" }, modelActions);
     renderApp();
-    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download model" }));
     expect(modelActions.consent).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Not now" }));
     expect(modelActions.decline).toHaveBeenCalledTimes(1);
@@ -159,7 +159,7 @@ describe("a job that ends because of the model is never shown as a success", () 
     expect(box.textContent).toContain(MODEL_ERROR_TEXT[code]);
     expect(box.textContent).not.toContain(reason); // never the raw code
     expect(screen.queryByText(/Done, every check passed/)).toBeNull();
-    expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Download model" })).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: "Try another request" }),
     );

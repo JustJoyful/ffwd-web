@@ -99,6 +99,13 @@ describe("error handling is complete", () => {
     );
     expect(Object.keys(MACHINE_REASON).sort()).toEqual([...ERROR_CODES].sort());
   });
+  test("the text matches the buttons: Try again is suggested first, a reload only if it fails (owner, 2026-11-24)", () => {
+    for (const c of ["load_failed", "hash_mismatch"]) {
+      expect(MODEL_ERROR_TEXT[c], c).toMatch(/Try again.*reload the page/);
+    }
+    // no Try again button is offered for out_of_memory, so its text must not point at one
+    expect(MODEL_ERROR_TEXT.out_of_memory).not.toMatch(/Try again/);
+  });
   test("a job that does not fit ends as too_long, never as a success", () => {
     expect(MACHINE_REASON.context_full).toBe("too_long");
     expect(MODEL_ERROR_TEXT.context_full).toMatch(/not done/);

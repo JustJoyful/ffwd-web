@@ -115,7 +115,7 @@ for (const [id, chore, opts] of [
 
     // 5. Download: a real mp4 with the expected name.
     const downloading = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download" }).click();
+    await page.getByRole("button", { name: "Download model" }).click();
     const download = await downloading;
     expect(download.suggestedFilename()).toBe(chore.download);
     const path = testInfo.outputPath(chore.download);

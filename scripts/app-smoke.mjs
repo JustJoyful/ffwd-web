@@ -203,7 +203,7 @@ await step("model asks before downloading", async () => {
   });
 });
 await step("consent and download starts", async () => {
-  await page.getByRole("button", { name: "Download" }).first().click();
+  await page.getByRole("button", { name: "Download model" }).click();
   // From localhost the 444 MB can arrive in a few seconds, so the bar may already be gone: record what was seen.
   const bar = await page
     .getByRole("progressbar")
