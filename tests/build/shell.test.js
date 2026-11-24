@@ -70,3 +70,12 @@ test("cache headers: /assets/* immutable, /media/* one day", () => {
 test("build/client/_headers exists", () => {
   expect(existsSync("build/client/_headers")).toBe(true);
 });
+
+test("the built _headers carries a Content-Security-Policy with frame-ancestors none (review S5)", () => {
+  const h = parseHeaders(readFileSync("build/client/_headers", "utf8"));
+  const csp = h["/*"]["Content-Security-Policy"];
+  expect(csp).toContain("frame-ancestors 'none'");
+  expect(csp).toContain("connect-src 'self'");
+  expect(csp).toContain("object-src 'none'");
+  expect(h["/*"]["Cross-Origin-Embedder-Policy"]).toBe("credentialless"); // still there
+});

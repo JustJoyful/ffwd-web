@@ -2,7 +2,9 @@
 //  - 404.html: Cloudflare Pages serves /404.html for any address with no file (the prerendered 404 page).
 //  - sitemap.xml and robots.txt, generated from the chore list so a new chore is listed without a second edit.
 import { copyFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { loadEnv } from "vite";
+import { buildCsp } from "../csp.js";
 import { chores } from "../app/content/chores.js";
 import { SITE_URL } from "../app/config.js";
 
@@ -18,6 +20,25 @@ const env = {
   ...loadEnv("production", process.cwd(), "VITE_"),
   ...process.env,
 };
+
+// The Content-Security-Policy names this build's hosts, so it is added to the copied _headers here, in the "/*" block.
+const csp = buildCsp({
+  modelUrl: env.VITE_MODEL_URL,
+  analyticsHost: env.VITE_POSTHOG_KEY
+    ? (env.VITE_POSTHOG_HOST ?? "https://us.i.posthog.com")
+    : null,
+});
+const headers = readFileSync(`${OUT}/_headers`, "utf8");
+const marker = "  Referrer-Policy: strict-origin-when-cross-origin\n";
+if (!headers.includes(marker))
+  throw new Error(
+    "postbuild: _headers has no Referrer-Policy line to put the CSP after",
+  );
+writeFileSync(
+  `${OUT}/_headers`,
+  headers.replace(marker, `${marker}  Content-Security-Policy: ${csp}\n`),
+);
+
 writeFileSync(
   "build/build-info.json",
   JSON.stringify(
