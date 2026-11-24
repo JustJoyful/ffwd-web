@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { CHORES } from "../../app/content/showcase-chores.js";
-import { chipsFromSpec } from "../../app/tool/chips.js";
+import { chipsFromSpec, strictnessLines } from "../../app/tool/chips.js";
 import AskUser from "../../app/components/tool/AskUser.jsx";
 import CapabilityNotice from "../../app/components/tool/CapabilityNotice.jsx";
 import PlanCard from "../../app/components/tool/PlanCard.jsx";
@@ -326,5 +326,40 @@ describe("every control is a real, named, focusable control", () => {
       c.focus();
       expect(document.activeElement).toBe(c);
     }
+  });
+});
+
+describe("the strictness panel", () => {
+  const withTol = spec({
+    time: { start_s: 1, end_s: 3, tolerance_s: 0.1 },
+    quality: { min_ssim: 0.95, min_psnr_db: 30 },
+  });
+  const props = { chips: [["Keep", "0:01 to 0:03", 1]], state: "proposed" };
+
+  test("strictnessLines names tolerance and floors in plain words, and is empty when the spec sets none", () => {
+    expect(strictnessLines(withTol)).toEqual([
+      "Timing may be off by up to 0.1 s",
+      "Picture quality at least 0.95 out of 1 (1 means identical to the original)",
+      "Picture noise level no worse than 30 dB (higher is closer)",
+    ]);
+    expect(strictnessLines(spec({ container: "mp4" }))).toEqual([]);
+  });
+
+  test("a closed details panel with a plain title; absent when there is nothing to say", () => {
+    const { container, rerender } = render(
+      <PlanCard {...props} strictness={strictnessLines(withTol)} />,
+    );
+    const d = container.querySelector("details");
+    expect(d.open).toBe(false);
+    expect(d.querySelector("summary").textContent).toBe(
+      "How closely the result is checked",
+    );
+    expect(d.textContent).toContain("Timing may be off by up to 0.1 s");
+    // chips stay clean: the numbers are not in the main list
+    expect(container.querySelector(".chips").textContent).not.toMatch(
+      /0\.1|0\.95/,
+    );
+    rerender(<PlanCard {...props} strictness={[]} />);
+    expect(container.querySelector("details")).toBeNull();
   });
 });

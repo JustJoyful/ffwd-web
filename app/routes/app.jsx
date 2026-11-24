@@ -25,7 +25,7 @@ import Unsupported from "../components/tool/Unsupported.jsx";
 import Viewer from "../components/tool/Viewer.jsx";
 import { MACHINE_REASON, initialModelState } from "../model/contract.js";
 import { bindAnalytics } from "../tool/analytics-bridge.js";
-import { chipsFromSpec, displayArgs } from "../tool/chips.js";
+import { chipsFromSpec, displayArgs, strictnessLines } from "../tool/chips.js";
 import { useTool } from "../tool/store.js";
 
 // The tool. Client-only: no server data and nothing prerendered, because it needs the browser (WebGPU, workers,
@@ -378,6 +378,7 @@ export default function App() {
                   <PlanCard
                     key={state.request}
                     chips={chips}
+                    strictness={strictnessLines(state.spec)}
                     state={
                       name === "awaitingConfirm"
                         ? edited
