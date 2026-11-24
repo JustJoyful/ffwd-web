@@ -33,7 +33,10 @@ const arg = (k, d) => {
   const i = process.argv.indexOf(`--${k}`);
   return i < 0 ? d : process.argv[i + 1];
 };
-const MODEL = resolve(arg("model"));
+// --app-url <url of an app that is already running>: drive THAT page (pnpm release:local prints it) instead of starting a
+// model server and a dev server of our own; the model then comes from the release package that page was built for.
+const APP_URL = arg("app-url");
+const MODEL = APP_URL ? null : resolve(arg("model"));
 const OUT = resolve(arg("out"));
 const VARIANT = arg("variant", "nvidia");
 const VK_ICD = arg("vk-icd");
@@ -58,7 +61,7 @@ if (availMib() < MIN_AVAIL_MIB + 500)
   throw new Error(`only ${Math.round(availMib())} MiB available: not starting`);
 
 // 1. the model server: CORS for the app origin, Range, and CORP so credentialless COEP lets it through.
-const size = statSync(MODEL).size;
+const size = APP_URL ? 0 : statSync(MODEL).size;
 const modelServer = createServer((req, res) => {
   const h = {
     "Access-Control-Allow-Origin": "*",
@@ -83,21 +86,31 @@ const modelServer = createServer((req, res) => {
   if (req.method === "HEAD") return void res.end();
   createReadStream(MODEL, { start, end }).pipe(res);
 });
-await new Promise((ok) => modelServer.listen(MODEL_PORT, "127.0.0.1", ok));
+if (!APP_URL)
+  await new Promise((ok) => modelServer.listen(MODEL_PORT, "127.0.0.1", ok));
 
 // 2. the app: the dev server with the model URL set.
-const dev = spawn(
-  "pnpm",
-  ["exec", "react-router", "dev", "--port", String(APP_PORT), "--strictPort"],
-  {
-    env: {
-      ...process.env,
-      VITE_MODEL_URL: `http://localhost:${MODEL_PORT}/model.gguf`,
-    },
-    stdio: "ignore",
-  },
-);
-const APP = `http://localhost:${APP_PORT}`;
+const dev = APP_URL
+  ? { kill() {} }
+  : spawn(
+      "pnpm",
+      [
+        "exec",
+        "react-router",
+        "dev",
+        "--port",
+        String(APP_PORT),
+        "--strictPort",
+      ],
+      {
+        env: {
+          ...process.env,
+          VITE_MODEL_URL: `http://localhost:${MODEL_PORT}/model.gguf`,
+        },
+        stdio: "ignore",
+      },
+    );
+const APP = APP_URL ?? `http://localhost:${APP_PORT}`;
 for (let i = 0; i < 120; i++) {
   try {
     if ((await fetch(`${APP}/app`)).ok) break;
