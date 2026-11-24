@@ -10,18 +10,24 @@ import { MEMORY_WARNING_TEXT, estimateWait } from "../../lib/capability.js";
  */
 export default function ModelPathNotice({ path, model }) {
   if (model?.check) {
+    // a computer with no usable graphics chip (path is the capability guess while the check runs) has nothing to test:
+    // it only measures the processor, which is quick
+    const graphics = path !== "cpu";
     return (
       <div
         className="notice notice--wide"
         role="status"
         data-check={model.check}
       >
-        <p className="notice__t">Checking this computer's graphics chip</p>
+        <p className="notice__t">
+          {graphics
+            ? "Checking this computer's graphics chip"
+            : "Measuring this computer's speed"}
+        </p>
         <p>
-          The first time on a computer, ffwd tests that the on-device model
-          gives the right answers on the graphics chip, and measures how fast
-          each choice is. This can take a minute or more. The result is
-          remembered, so it only happens once.
+          {graphics
+            ? "The first time on a computer, ffwd tests that the on-device model gives the right answers on the graphics chip, and measures how fast each choice is. This can take a minute or more. The result is remembered, so it only happens once."
+            : "The first time on a computer, ffwd measures how fast the on-device model runs on the processor, so it can tell you how long a step takes. This takes a few seconds. The result is remembered, so it only happens once."}
         </p>
       </div>
     );

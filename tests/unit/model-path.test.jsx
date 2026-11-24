@@ -66,6 +66,18 @@ describe("ModelPathNotice with the model's own measurements", () => {
     expect(box.textContent).toMatch(/minute or more/);
     expect(box.textContent).toMatch(/remembered/);
   });
+  test("a computer with no graphics chip is told it is only being measured, not that its graphics chip is tested", () => {
+    render(
+      <ModelPathNotice
+        path="cpu"
+        model={modelState({ phase: "loading", check: "benchmark" })}
+      />,
+    );
+    const t = screen.getByRole("status").textContent;
+    expect(t).toMatch(/measures how fast/);
+    expect(t).not.toMatch(/graphics chip/i);
+    expect(t).toMatch(/remembered/);
+  });
   test("a measured processor speed replaces the one-laptop numbers and says it is this computer", () => {
     const bench = { ppTokS: 100, genTokS: 20 };
     render(
