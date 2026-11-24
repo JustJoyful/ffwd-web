@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ffmpeg-agent.dev/protocol/v0.3.0/model",
+  "title": "ffwd-model.json: the manifest of one released model (D-053). The app, helper and CLI read this instead of hard-coded URLs and defaults, and refuse a model whose protocol_version or min_app_version does not match what they were built for.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "min_app_version", "protocol_version", "licence", "licence_file", "card", "files", "prompt", "chat_template", "runtime", "canary"],
+  "properties": {
+    "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$"},
+    "version": {"$ref": "#/$defs/semver", "description": "MAJOR: prompt, protocol or action schema change. MINOR: new weights, same protocol. PATCH: card or packaging only (D-053)."},
+    "min_app_version": {"$ref": "#/$defs/semver", "description": "Oldest version of the website, helper or CLI that may load this model, as a semver string. An app older than this refuses the model (fail closed). 1.0.0 for the first release."},
+    "protocol_version": {"$ref": "#/$defs/semver", "description": "packages/protocol version the model was trained and evaluated against (training/config.py PROTOCOL_VERSION). An app built for another protocol_version refuses the model."},
+    "base_model": {"type": "string"},
+    "licence": {"type": "string", "description": "SPDX id of the weights licence."},
+    "licence_file": {"$ref": "#/$defs/relpath"},
+    "card": {"$ref": "#/$defs/relpath", "description": "Model card; resolved like every file name."},
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "role", "format", "sha256", "size_bytes"],
+        "properties": {
+          "path": {"$ref": "#/$defs/relpath", "description": "Relative to the manifest's own URL or folder. Never an absolute URL."},
+          "role": {"enum": ["shipped", "evaluated", "adapter", "prompt", "template"], "description": "shipped = the file apps load; evaluated = the file of the headline test results; adapter = LoRA weights for re-merging."},
+          "format": {"enum": ["gguf", "safetensors", "json", "text", "jinja"]},
+          "quant": {"type": "string"},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "size_bytes": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "file", "sha256"],
+      "properties": {"version": {"type": "string"}, "file": {"$ref": "#/$defs/relpath"}, "sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "chat_template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "file", "sha256", "add_generation_prompt"],
+      "properties": {
+        "id": {"type": "string"},
+        "file": {"$ref": "#/$defs/relpath"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "add_generation_prompt": {"type": "boolean", "description": "true: the rendered prompt ends with the assistant turn opener and the empty think block."}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_ctx", "kv_cache_type", "flash_attention", "temperature", "max_tokens"],
+      "properties": {
+        "n_ctx": {"type": "integer", "minimum": 1},
+        "kv_cache_type": {"enum": ["f16", "q8_0"]},
+        "flash_attention": {"type": "boolean"},
+        "temperature": {"const": 0, "description": "Greedy decoding."},
+        "max_tokens": {"type": "integer", "minimum": 1, "description": "Reply budget per turn."}
+      }
+    },
+    "canary": {
+      "type": "object",
+      "description": "The WebGPU canary: a fixed prompt whose greedy reply is known. A graphics path whose reply differs is not used. The prompt is not stored: it is re-rendered, byte for byte, from the system prompt (prompt.sha256), the user turn below and the chat template (chat_template.sha256), and its sha256 is rendered_prompt_sha256.",
+      "additionalProperties": false,
+      "required": ["file_sha256", "user_turn", "rendered_prompt_sha256", "prompt_tokens", "n_predict", "expected_token_ids", "expected_text", "match", "reference"],
+      "properties": {
+        "file_sha256": {"$ref": "#/$defs/sha256", "description": "The model file this reference was made with (a files[].sha256); it judges no other file."},
+        "user_turn": {"type": "string", "description": "Content of the single user message after the system message, verbatim."},
+        "rendered_prompt_sha256": {"$ref": "#/$defs/sha256"},
+        "prompt_tokens": {"type": "integer", "minimum": 1},
+        "n_predict": {"type": "integer", "minimum": 1},
+        "expected_token_ids": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 0}},
+        "expected_text": {"type": "string"},
+        "match": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "min_matched", "of"],
+          "properties": {
+            "kind": {"const": "prefix", "description": "Count the leading generated ids that equal the expected ones (greedy decoding diverges after the first mismatch). The reply text is tokenised with special tokens not parsed and no BOS."},
+            "min_matched": {"type": "integer", "minimum": 1},
+            "of": {"type": "integer", "minimum": 1}
+          }
+        },
+        "reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["llama_cpp_build", "backend", "kv_cache_type", "flash_attention"],
+          "properties": {
+            "llama_cpp_build": {"type": "string"},
+            "backend": {"type": "string"},
+            "kv_cache_type": {"enum": ["f16", "q8_0"]},
+            "flash_attention": {"type": "boolean"}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "semver": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "relpath": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$", "description": "Relative path: no leading slash, no .. segment, no scheme."}
+  }
+}

@@ -1,6 +1,6 @@
 {
   "protocol_version": "0.3.0",
-  "source_commit": "52a748c3c5483b598850ed19189c21045d4f785f",
+  "source_commit": "2f19ab83dcec9df1c850d06c798401ff346c8a49",
   "files": {
     "allowlist.json": "d6aefcfa3b03673214ab9ee2b145c242f56ae5bb4a9ce5fb185edff93961a57b",
     "conformance/bench-jobs.json": "9bed3d18448e5e28e8f7169c89c0361cd640d09f5999b7a0e4d27f19d17eac21",
@@ -12,6 +12,7 @@
     "conformance/checker-quality.jsonl": "9ef94ca3324791c482bcd5ce728070731c746738f65dd8432a143b6bbad052ff",
     "conformance/checker-rotation.jsonl": "cc1e520802ff43708dc54d267ccd0c86c1485406b4cf6cedd957a13d10abd311",
     "conformance/describe-spec.jsonl": "63c1763f309120e374ca5aae49527c41b3a85d2ba52ecd1fc62e8a78a771923e",
+    "conformance/model-manifest.jsonl": "a08408780879aa961b4e50543df0a5a936da90823a97aec3d017f03f1782d512",
     "conformance/timing-chores.json": "5ee8d36dfa75fa6f855c51198842a7e131364b0eae26798825c26ac1f6050f60",
     "conformance/validator.jsonl": "1ea53996c0d566a671840611414dbc668e64c651ad27513c594eb1462ffefc6a",
     "prompts/chat-template.jinja": "8d12c21330339015cf3856b2c8fd0ade15556f92c87958d3426b832bae029af5",
@@ -20,6 +21,7 @@
     "prompts/system-v1.txt": "56e7d7217b97c122662235cceb96acbf62bd822c6fec25f880035bfff805c724",
     "schemas/action.schema.json": "9c34dc6e1da26d786ed25996e6a2ff3fcfea51d2b2fccca5a416e367c84d47fe",
     "schemas/check.schema.json": "c5b20f44d0be91ca601b8e7fc2ea8ea18277d815582a09200cefc8056d7338db",
+    "schemas/model.schema.json": "f37fc76140d26188cc5924fcf651da1e16fafaf29e9d048cf1a215145d4a3bd1",
     "schemas/probe.schema.json": "fc34f06156cb2c8302f1d7498d3b09aa7abb694c75cc7c79d76204a61cf43e1d",
     "schemas/spec.schema.json": "31aba1911c658b5e6dfd8103bf244d8f7c30fbc52107d99e277e5c6c528e4e0c",
     "schemas/task.schema.json": "f6f3d777877157003270337739d8fcb39124043aef8866560d05122b69201458"
