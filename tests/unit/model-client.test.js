@@ -61,6 +61,18 @@ class FakeWorker {
   }
 }
 
+/** A throwaway localStorage, so a verdict from one test never reaches the next. */
+const memoryStorage = (init = {}) => {
+  const m = new Map(Object.entries(init));
+  return {
+    getItem: (k) => m.get(k) ?? null,
+    setItem: (k, v) => void m.set(k, String(v)),
+    removeItem: (k) => void m.delete(k),
+    map: m,
+  };
+};
+const ADAPTER = { vendor: "nvidia", architecture: "ampere", description: "x" };
+
 function make({ cached = false, url = URL_, ...over } = {}) {
   const workers = [];
   const client = createModelClient({
@@ -71,6 +83,9 @@ function make({ cached = false, url = URL_, ...over } = {}) {
     },
     url,
     isCached: async () => cached,
+    getAdapter: async () => ADAPTER, // a real graphics adapter, unless a test says otherwise
+    storage: memoryStorage(),
+    threads: 4,
     ...over,
   });
   return { client, workers };
@@ -113,6 +128,8 @@ describe("cached model (warm start)", () => {
         nCtx: MODEL.nCtx,
         path: "cpu",
         kvCache: MODEL.kvCache,
+        threads: 4,
+        probe: true, // no stored verdict yet
       },
     ]);
     workers[0].ready({ path: "cpu", loadMs: 950 });
