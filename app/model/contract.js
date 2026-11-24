@@ -83,9 +83,9 @@ export const MODEL_ERROR_TEXT = {
   context_full:
     "This job got too long for the on-device model, so it was not done.",
   load_failed:
-    "The on-device model could not start. Reload the page to try again.",
+    "The on-device model could not start. Press Try again. If that does not help, reload the page.",
   hash_mismatch:
-    "The downloaded model file did not match what was expected, so it was not used. Reload the page to download it again.",
+    "The downloaded model file did not match what was expected, so it was not used. Press Try again to download it again. If that does not help, reload the page.",
   out_of_memory:
     "This computer ran out of memory loading the model. Close other tabs and programs and reload, or try the desktop app when it is out.",
   generate_failed:

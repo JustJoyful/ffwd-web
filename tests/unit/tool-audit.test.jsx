@@ -39,7 +39,7 @@ describe("CommandReveal copy", () => {
 
 describe("the model box is keyboard-reachable and named in every phase", () => {
   test.each([
-    ["needsConsent", ["Download", "Not now"]],
+    ["needsConsent", ["Download model", "Not now"]],
     ["failed", ["Try again"]],
   ])("%s", (phase, names) => {
     render(

@@ -33,7 +33,7 @@ describe("ModelLoader", () => {
     expect(screen.getByRole("status").textContent).toContain(
       `The on-device model has to be downloaded once: ${MB}. It stays in your browser; your videos never leave your computer.`,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download model" }));
     expect(onConsent).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Not now" }));
     expect(onDecline).toHaveBeenCalledTimes(1);
@@ -52,7 +52,7 @@ describe("ModelLoader", () => {
       /not downloaded.*can't make a plan/,
     );
     expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
-    const again = screen.getByRole("button", { name: "Download again" });
+    const again = screen.getByRole("button", { name: "Download model again" });
     expect(document.activeElement).toBe(again);
     fireEvent.click(again);
     expect(onConsent).toHaveBeenCalledTimes(1);
