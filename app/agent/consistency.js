@@ -432,15 +432,47 @@ export function commandEffects(args, probe) {
   return e;
 }
 
+// The input's own container from its file name or MIME type (local only), for the mov/mp4 family the probe cannot
+// tell apart. The extension wins over the MIME type; unknown gives null (the caller then assumes a change).
+const EXT_CONTAINER = {
+  mp4: "mp4",
+  m4v: "mp4",
+  mov: "mov",
+  m4a: "m4a",
+  "3gp": "3gp",
+};
+const MIME_CONTAINER = {
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "audio/mp4": "m4a",
+  "audio/x-m4a": "m4a",
+  "video/3gpp": "3gp",
+};
+/** @param {{ name?: string, type?: string } | null | undefined} file */
+function fileContainer(file) {
+  const ext = /\.([A-Za-z0-9]+)$/.exec(file?.name ?? "")?.[1]?.toLowerCase();
+  return (
+    EXT_CONTAINER[ext] ??
+    MIME_CONTAINER[String(file?.type ?? "").toLowerCase()] ??
+    null
+  );
+}
+
 /**
  * Does asking for this container change the file's container? The probe names a whole family for mp4/mov/m4a
- * ("mov,mp4,m4a,3gp,3g2,mj2"), which cannot tell a .mov from an .mp4, so a family member counts as a change (the
- * iPhone .mov to .mp4 chore is exactly that). Only an unambiguous single name (mp3, wav, ...) can be "the same".
+ * ("mov,mp4,m4a,3gp,3g2,mj2"), which cannot tell a .mov from an .mp4. A single probe name (mp3, wav, ...) is exact.
+ * For the family, the chosen file's extension or MIME type decides (.mov to mp4 IS a change, .mp4 to mp4 is not); when
+ * they are unknown it counts as a change.
+ * @param {string | null | undefined} container
+ * @param {object} probe
+ * @param {{ name?: string, type?: string } | null} [file]
  */
-export function containerChanges(container, probe) {
+export function containerChanges(container, probe, file = null) {
   if (!isSet(container)) return false;
   const names = String(probe?.container ?? "").split(",");
-  return !(names.length === 1 && names[0] === container);
+  if (names.length === 1) return names[0] !== container;
+  const own = fileContainer(file);
+  return !(own !== null && names.includes(own) && own === container);
 }
 
 /**
@@ -451,8 +483,9 @@ export function containerChanges(container, probe) {
  * size limit the input already meets are constraints, not changes.
  * @param {{ outputs: object[] }} spec
  * @param {object} probe
+ * @param {{ name?: string, type?: string } | null} [file] the chosen file, for its own container (see containerChanges)
  */
-export function specEffects(spec, probe) {
+export function specEffects(spec, probe, file = null) {
   const o = spec?.outputs?.[0];
   const e = {
     orientation: null,
@@ -495,11 +528,11 @@ export function specEffects(spec, probe) {
   e.changesNothing =
     spec.outputs.length === 1 &&
     ((o.kind === "video" && Boolean(vin)) || (o.kind === "audio" && !vin)) &&
-    !containerChanges(o.container, probe) &&
+    !containerChanges(o.container, probe, file) &&
     !e.trim &&
     same(v.width, iw) &&
     same(v.height, ih) &&
-    same(v.rotation, vin?.rotation ?? 0) &&
+    same(v.rotation, 0) && // net turn: 0 means none
     (!isSet(v.fps) ||
       (Boolean(vin) && Math.abs(v.fps - vin.fps) <= vin.fps * FPS_REL)) &&
     same(v.codec, vin?.codec) &&

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { COVERAGE_ADVICE } from "../../agent/request-coverage.js";
 
 export const NO_CHANGE_TEXT =
   "This plan doesn't change anything. Reword your request?";
@@ -7,15 +8,17 @@ export const NO_CHANGE_TEXT =
  * The plan the person confirms, in two groups: "Will change" and "Keeps". Focus moves to the primary button when a plan
  * is proposed, so Enter is enough. Chips arrive 60 ms apart, at most six steps (CSS reads --i).
  *
- * When the plan changes nothing (`noChange`) there is no plain Run button: the primary action is "Reword my request"
+ * When the plan changes nothing (`noChange`), or the request names something the plan does not touch (`gaps`, from
+ * request-coverage.js), there is no plain Run button: the primary action is "Reword my request"
  * and "Run anyway" is secondary and needs a second, inline click ("Run anyway, change nothing?" then "Yes, run it" or
  * "Cancel"); focus follows each step. `strictness` goes in a closed native <details>; no lines, no panel.
- * @param {{ chips: Array<[string, string, 1?]>, strictness?: string[], noChange?: boolean, state: "proposed" | "edited" | "confirmed", onRun(): void, onChange(): void, onReword?(): void }} props
+ * @param {{ chips: Array<[string, string, 1?]>, strictness?: string[], noChange?: boolean, gaps?: string[], state: "proposed" | "edited" | "confirmed", onRun(): void, onChange(): void, onReword?(): void }} props
  */
 export default function PlanCard({
   chips,
   strictness = [],
   noChange = false,
+  gaps = [],
   state,
   onRun,
   onChange,
@@ -35,6 +38,7 @@ export default function PlanCard({
   useEffect(() => {
     if (asking) sure.current?.focus();
   }, [asking]);
+  const warn = noChange || gaps.length > 0;
   const groups = [
     ["Will change", chips.filter((c) => c[2])],
     ["Keeps", chips.filter((c) => !c[2])],
@@ -66,10 +70,16 @@ export default function PlanCard({
             </div>
           ),
       )}
-      {noChange && state !== "confirmed" && (
-        <p className="notice notice--bad plan__warn" role="alert">
-          {NO_CHANGE_TEXT}
-        </p>
+      {warn && state !== "confirmed" && (
+        <div className="notice notice--bad plan__warn" role="alert">
+          {noChange && <p>{NO_CHANGE_TEXT}</p>}
+          {gaps.map((g, i) => (
+            <p key={g}>
+              {g}
+              {!noChange && i === gaps.length - 1 && ` ${COVERAGE_ADVICE}`}
+            </p>
+          ))}
+        </div>
       )}
       {strictness.length > 0 && (
         <details className="how">
@@ -79,7 +89,7 @@ export default function PlanCard({
           ))}
         </details>
       )}
-      {state !== "confirmed" && !noChange && (
+      {state !== "confirmed" && !warn && (
         <div className="plan__actions">
           <button
             ref={primary}
@@ -99,7 +109,7 @@ export default function PlanCard({
           </button>
         </div>
       )}
-      {state !== "confirmed" && noChange && (
+      {state !== "confirmed" && warn && (
         <div className="plan__actions">
           <button
             ref={primary}
@@ -122,7 +132,7 @@ export default function PlanCard({
           ) : (
             <span
               role="group"
-              aria-label="Run anyway? Nothing will change"
+              aria-label="Run anyway?"
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   setAsking(false);

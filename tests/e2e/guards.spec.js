@@ -150,3 +150,59 @@ test("every run fails its checks but a file exists: Download anyway, never succe
   expect(readFileSync(path).subarray(4, 8).toString("latin1")).toBe("ftyp");
   await context.close();
 });
+
+test("the owner's request with a plan that changes nothing: warned, no plain Run it, Reword focuses the field", async ({
+  browser,
+}) => {
+  // what the real model wrote: every field equals the clip (sample.mp4: 1280x720, 4 s, AAC)
+  const { context, page } = await start(
+    browser,
+    [
+      spec({
+        container: "mp4",
+        video: { fps: 30, rotation: 0 },
+        audio: { present: true, codec: "aac", offset_ms: 0 },
+      }),
+    ],
+    "Make the video potrait mode, lower the volume",
+  );
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText(
+    "This plan doesn't change anything. Reword your request?",
+  );
+  await expect(alert).toContainText(
+    "Your request mentions a portrait picture, but this plan doesn't change it.",
+  );
+  await expect(alert).toContainText(
+    "Your request mentions the volume, but this plan doesn't change it.",
+  );
+  await expect(page.getByLabel("Will change")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Run it" })).toHaveCount(0);
+  const reword = page.getByRole("button", { name: "Reword my request" });
+  await expect(reword).toBeFocused();
+  await reword.click();
+  await expect(
+    page.getByLabel("What should happen to your video?"),
+  ).toBeFocused();
+  await expect(page.getByRole("button", { name: "Run anyway" })).toBeVisible();
+  await context.close();
+});
+
+test("a request the plan covers except one thing: a non-blocking warning with the same two actions", async ({
+  browser,
+}) => {
+  const { context, page } = await start(
+    browser,
+    [spec({ time: { start_s: 1 } })],
+    "Cut the first second and lower the volume",
+  );
+  await expect(page.getByRole("alert")).toHaveText(
+    "Your request mentions the volume, but this plan doesn't change it. Reword your request, or run it anyway.",
+  );
+  await expect(page.getByRole("button", { name: "Run it" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Run anyway" }).click();
+  await expect(
+    page.getByRole("button", { name: "Yes, run it anyway" }),
+  ).toBeFocused();
+  await context.close();
+});
