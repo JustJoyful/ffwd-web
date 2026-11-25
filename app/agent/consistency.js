@@ -433,6 +433,17 @@ export function commandEffects(args, probe) {
 }
 
 /**
+ * Does asking for this container change the file's container? The probe names a whole family for mp4/mov/m4a
+ * ("mov,mp4,m4a,3gp,3g2,mj2"), which cannot tell a .mov from an .mp4, so a family member counts as a change (the
+ * iPhone .mov to .mp4 chore is exactly that). Only an unambiguous single name (mp3, wav, ...) can be "the same".
+ */
+export function containerChanges(container, probe) {
+  if (!isSet(container)) return false;
+  const names = String(probe?.container ?? "").split(",");
+  return !(names.length === 1 && names[0] === container);
+}
+
+/**
  * What the confirmed spec requires, compared with the input. `null` = not constrained.
  * `changesNothing` is true when every field the spec sets already equals the input (or is null): ONE video output
  * (or an audio output from a picture-less input) whose container, cut, size, turn, frame rate, codecs and sound all
@@ -481,11 +492,10 @@ export function specEffects(spec, probe) {
     (isSet(t.end_s) && (!isSet(d) || t.end_s < d - FULL_EPS_S));
 
   const same = (x, y) => !isSet(x) || x === y;
-  const containers = String(probe?.container ?? "").split(",");
   e.changesNothing =
     spec.outputs.length === 1 &&
     ((o.kind === "video" && Boolean(vin)) || (o.kind === "audio" && !vin)) &&
-    same(o.container, containers.includes(o.container) ? o.container : null) &&
+    !containerChanges(o.container, probe) &&
     !e.trim &&
     same(v.width, iw) &&
     same(v.height, ih) &&

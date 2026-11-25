@@ -39,10 +39,7 @@ test("a plan that changes nothing warns, offers Reword, and Run anyway needs a s
 }) => {
   const { context, page } = await start(
     browser,
-    [
-      spec({ container: "mp4" }),
-      run("-i", "{in:clip}", ...X264, "-c:a", "aac", "{out:out1}"),
-    ],
+    [spec({}), run("-i", "{in:clip}", ...X264, "-c:a", "aac", "{out:out1}")],
     "Do something",
   );
   await expect(page.getByRole("alert")).toHaveText(
@@ -100,7 +97,7 @@ test("an FFmpeg failure is said in plain words, with no exit code, path or log",
   const bad = run("-i", "{in:clip}", "-vf", "scale=abc:def", "{out:out1}");
   const { context, page } = await start(
     browser,
-    [spec({ container: "mp4" }), bad, bad, bad, bad],
+    [spec({}), bad, bad, bad, bad],
     "Do something",
   );
   await page.getByRole("button", { name: "Run anyway" }).click();

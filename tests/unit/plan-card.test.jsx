@@ -17,8 +17,8 @@ const labels = (cs) => cs.map(([l]) => l);
 describe("planGroups", () => {
   test("a trim: Keep and Length change, picture and sound are kept", () => {
     const g = planGroups(spec({ container: "mp4", time: { start_s: 1 } }), P);
-    expect(labels(g.change)).toEqual(["Keep", "Length"]);
-    expect(labels(g.keep)).toEqual(["Format", "Picture", "Sound"]);
+    expect(labels(g.change)).toEqual(["Keep", "Length", "Format"]);
+    expect(labels(g.keep)).toEqual(["Picture", "Sound"]);
     expect(g.changesNothing).toBe(false);
   });
   test("audio extraction: picture removed is a change", () => {
@@ -45,7 +45,6 @@ describe("planGroups", () => {
   test("changes nothing: empty spec, matching values, full-length cut, limit already met", () => {
     for (const o of [
       {},
-      { container: "mp4" },
       { time: { start_s: 0, end_s: 4 } },
       { video: { width: 1280, height: 720 } },
       { size_max_bytes: 9e6 },
@@ -54,9 +53,7 @@ describe("planGroups", () => {
         true,
       );
     expect(
-      labels(
-        planGroups(spec({ container: "mp4", time: { start_s: 0 } }), P).change,
-      ),
+      labels(planGroups(spec({ time: { start_s: 0 } }), P).change),
     ).toEqual([]);
   });
 });

@@ -76,10 +76,10 @@ describe("commandEffects", () => {
 describe("specEffects.changesNothing", () => {
   test.each([
     [spec({}), true],
-    [spec({ container: "mp4" }), true],
+    [spec({ container: "mp4" }), false], // mov/mp4 cannot be told apart: a conversion
+    [spec({ container: "mp3" }), false],
     [
       spec({
-        container: "mp4",
         video: { width: 1280, height: 720, rotation: 0 },
         audio: { present: true },
       }),

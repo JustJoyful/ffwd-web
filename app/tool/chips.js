@@ -2,7 +2,7 @@
 // home page (Keep, Length, Picture, Format, Size, Sound, ...). Only fields the spec sets are named as changes; the
 // rest read "unchanged". The same file maps a chip to the FFmpeg flags that implement it, for the command reveal.
 import { displaySize } from "../agent/checker/quality.js";
-import { specEffects } from "../agent/consistency.js";
+import { containerChanges, specEffects } from "../agent/consistency.js";
 import { substitute } from "../agent/executor/harness-args.js";
 import { fmt } from "../lib/format.js";
 
@@ -111,10 +111,9 @@ export function planGroups(spec, inputProbe) {
   const hasA = inputProbe?.streams?.some((x) => x.type === "audio");
   let chips = chipsFromSpec(spec, inputProbe).map((c) => [...c]);
   if (o.kind === "video" || o.kind === "audio") {
-    const containers = String(inputProbe?.container ?? "").split(",");
     const noop = (label) =>
       (label === "Format" &&
-        containers.includes(o.container) &&
+        !containerChanges(o.container, inputProbe) &&
         !isSet(o.video?.codec)) ||
       ((label === "Keep" || label === "Length") && !fx.trim);
     chips = chips.map(([l, v, ch]) => (ch && noop(l) ? [l, v] : [l, v, ch]));
