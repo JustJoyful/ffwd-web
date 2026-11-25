@@ -33,6 +33,7 @@ import Viewer from "../components/tool/Viewer.jsx";
 import { MACHINE_REASON, initialModelState } from "../model/contract.js";
 import { describeCheck } from "../tool/checks.js";
 import { bindAnalytics } from "../tool/analytics-bridge.js";
+import { coverageGaps } from "../agent/request-coverage.js";
 import { displayArgs, planGroups, strictnessLines } from "../tool/chips.js";
 import { useTool } from "../tool/store.js";
 
@@ -254,7 +255,12 @@ export default function App() {
         : "failed";
 
   const groups =
-    state.spec && input ? planGroups(state.spec, input.probe) : null;
+    state.spec && input ? planGroups(state.spec, input.probe, file) : null;
+  // the request's own words against the plan (request-coverage.js; remove it and the `gaps` prop to drop the warning)
+  const gaps =
+    state.spec && input
+      ? coverageGaps(state.request, state.spec, input.probe, file)
+      : [];
   // the command reveal still highlights by chip, changed or not
   const chips = groups ? [...groups.change, ...groups.keep] : [];
   const showPlan =
@@ -438,6 +444,7 @@ export default function App() {
                     key={state.request}
                     chips={chips}
                     noChange={groups.changesNothing}
+                    gaps={gaps}
                     onReword={() => field.current?.focus()}
                     strictness={strictnessLines(state.spec)}
                     state={
