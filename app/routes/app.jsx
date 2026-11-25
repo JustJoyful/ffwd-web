@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Link, useSearchParams } from "react-router";
 import "../styles/theme.css";
 import "../styles/tool.css";
@@ -107,6 +114,28 @@ function Step({ n, title, mod, children }) {
   );
 }
 
+// Opt-in feedback (separate from analytics): lazy, so none of it is in the first-load bundle, and it renders nothing at
+// all unless the build has a feedback URL.
+const FeedbackPrompt = lazy(
+  () => import("../components/tool/FeedbackPrompt.jsx"),
+);
+const FeedbackButton = lazy(() =>
+  import("../components/tool/FeedbackPrompt.jsx").then((m) => ({
+    default: m.FeedbackButton,
+  })),
+);
+/** The closed failure categories the feedback form allows, from why the job ended. */
+const feedbackFailure = (reason, unchecked) =>
+  unchecked
+    ? "checks_failed"
+    : ({
+        run_budget: "run_failed",
+        turn_budget: "no_plan",
+        too_long: "too_long",
+        model_unavailable: "model_error",
+        policy_error: "model_error",
+      }[reason] ?? "other");
+
 export default function App() {
   const [params] = useSearchParams();
   const tool = useTool();
@@ -125,6 +154,7 @@ export default function App() {
   const [dropNotice, setDropNotice] = useState(null);
   const [report, setReport] = useState(null);
   const [made, setMade] = useState(null);
+  const [fb, setFb] = useState(null); // "plan_wrong" once the person says the plan is wrong
   const field = useRef(null);
 
   const name = state.name;
@@ -251,6 +281,7 @@ export default function App() {
           ? "busy"
           : "ready";
   const again = () => {
+    setFb(null);
     dispatch({ type: "newRequest" });
   };
 
@@ -389,6 +420,19 @@ export default function App() {
                 {name === "unsupported" && (
                   <Unsupported reason={state.reason} onNewRequest={again} />
                 )}
+                {name === "unsupported" && (
+                  <Suspense fallback={null}>
+                    <FeedbackPrompt
+                      key={state.request}
+                      kind="failed_job"
+                      requestText={state.request ?? request}
+                      spec={null}
+                      failureCategory="no_plan"
+                      fileName={file?.name}
+                      modelVersion={store.model?.getConfig?.()?.version}
+                    />
+                  </Suspense>
+                )}
                 {showPlan && (
                   <PlanCard
                     key={state.request}
@@ -406,6 +450,23 @@ export default function App() {
                     onRun={() => dispatch({ type: "confirmed" })}
                     onChange={() => field.current?.focus()}
                   />
+                )}
+                {showPlan && (
+                  <Suspense fallback={null}>
+                    {fb === "plan_wrong" ? (
+                      <FeedbackPrompt
+                        kind="plan_wrong"
+                        requestText={state.request ?? request}
+                        spec={state.spec}
+                        failureCategory="plan_wrong"
+                        fileName={file?.name}
+                        modelVersion={store.model?.getConfig?.()?.version}
+                        onDone={(o) => o === "declined" && setFb(null)}
+                      />
+                    ) : (
+                      <FeedbackButton onClick={() => setFb("plan_wrong")} />
+                    )}
+                  </Suspense>
                 )}
                 {!showPlan &&
                   !["planning", "askingUser", "unsupported"].includes(name) && (
@@ -491,6 +552,22 @@ export default function App() {
                         Try another request
                       </button>
                     </div>
+                  )}
+                  {name === "failed" && state.reason !== "aborted" && (
+                    <Suspense fallback={null}>
+                      <FeedbackPrompt
+                        key={`${state.request}:${state.history.length}`}
+                        kind="failed_job"
+                        requestText={state.request ?? request}
+                        spec={state.spec}
+                        failureCategory={feedbackFailure(
+                          state.reason,
+                          Boolean(unchecked),
+                        )}
+                        fileName={file?.name}
+                        modelVersion={store.model?.getConfig?.()?.version}
+                      />
+                    </Suspense>
                   )}
                 </RunLog>
               </Step>
