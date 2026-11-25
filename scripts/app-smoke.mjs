@@ -41,6 +41,10 @@ const OUT = resolve(arg("out"));
 const VARIANT = arg("variant", "nvidia");
 const VK_ICD = arg("vk-icd");
 const SHOTS = arg("shots", "all");
+// --request "<text>": what to type (default: a clean trim). --probe: record whichever outcome the page reaches (a plan, a
+// no-change warning, a failure, "Download anyway") instead of requiring the happy path; used to look at new behaviour.
+const REQUEST = arg("request", "Cut the first 2 seconds off");
+const PROBE = process.argv.includes("--probe");
 if (!["nvidia", "intel", "cpu"].includes(VARIANT))
   throw new Error(`--variant must be nvidia, intel or cpu, not ${VARIANT}`);
 if (VARIANT === "intel" && !VK_ICD)
@@ -493,11 +497,25 @@ await step(
   "type a request and make a plan",
   async () => {
     const field = page.getByLabel("What should happen to your video?");
-    await field.fill("Cut the first 2 seconds off");
+    await field.fill(REQUEST);
     await page.getByRole("button", { name: "Make a plan" }).click();
-    await expect(page.getByRole("button", { name: "Run it" })).toBeVisible({
-      timeout: 180000,
-    });
+    const runIt = page.getByRole("button", { name: "Run it" });
+    if (PROBE) {
+      // any of: a plan to run, a no-change warning, or the model giving up
+      await expect(
+        runIt
+          .or(page.getByRole("button", { name: "Reword my request" }))
+          .or(
+            page
+              .getByText(
+                /couldn.t settle on a plan|can.t do this|not something/i,
+              )
+              .first(),
+          ),
+      ).toBeVisible({ timeout: 180000 });
+    } else {
+      await expect(runIt).toBeVisible({ timeout: 180000 });
+    }
     return {
       plan: (
         await page
@@ -513,7 +531,32 @@ await step(
 await step(
   "run it",
   async () => {
-    await page.getByRole("button", { name: "Run it" }).click();
+    const runBtn = page.getByRole("button", { name: "Run it" });
+    if (PROBE && !(await runBtn.isVisible().catch(() => false))) {
+      const t = async (re) =>
+        await page
+          .getByText(re)
+          .first()
+          .isVisible()
+          .catch(() => false);
+      return {
+        probe: true,
+        ranIt: false,
+        noChangeWarning: await t(/doesn.t change anything/),
+        reword: await page
+          .getByRole("button", { name: "Reword my request" })
+          .isVisible()
+          .catch(() => false),
+        text: (
+          await page
+            .locator(".plan")
+            .first()
+            .innerText()
+            .catch(() => "")
+        ).slice(0, 600),
+      };
+    }
+    await runBtn.click();
     await Promise.race([
       expect(page.getByText("Done, every check passed")).toBeVisible({
         timeout: 300000,
@@ -522,11 +565,31 @@ await step(
         page.getByText(/Nothing to download|stopped|too long/i).first(),
       ).toBeVisible({ timeout: 300000 }),
     ]);
+    const vis = async (re) =>
+      page
+        .getByText(re)
+        .first()
+        .isVisible()
+        .catch(() => false);
     return {
       done: await page
         .getByText("Done, every check passed")
         .isVisible()
         .catch(() => false),
+      doesntMatch: await vis(/This result doesn.t match the plan/),
+      downloadAnyway: await page
+        .getByRole("button", { name: "Download anyway" })
+        .isVisible()
+        .catch(() => false),
+      nothingToDownload: await vis(/Nothing to download/),
+      feedbackOffered: await vis(/Help improve ffwd/),
+      checks: (
+        await page
+          .locator(".runlog")
+          .first()
+          .innerText()
+          .catch(() => "")
+      ).slice(0, 700),
     };
   },
   true,
