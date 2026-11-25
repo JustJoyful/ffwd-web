@@ -69,10 +69,12 @@ img, video { display: block; max-width: 100%; }
 /* ---------- nav ---------- */
 .nav { position: absolute; left: 0; right: 0; top: 16px; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: min(52rem, calc(100% - 2 * var(--margin))); margin: 0 auto; padding: 6px 6px 6px 16px; border-radius: 14px; background: rgb(20 15 12 / 0.72); box-shadow: inset 0 0 0 1px var(--line-2); }
 [data-theme="light"] .nav { background: rgb(251 250 248 / 0.8); }
-.brandrow { display: inline-flex; align-items: center; gap: 0.65rem; min-width: 0; }
-.preview-tag { display: inline-flex; align-items: center; gap: 0.4rem; padding: 3px 9px 3px 8px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line-2); font-size: 0.75rem; line-height: 1.3; color: var(--text-2); white-space: nowrap; }
-.preview-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-[data-theme="light"] .nav .preview-tag { color: rgb(255 247 242 / 0.72); box-shadow: inset 0 0 0 1px rgb(255 247 242 / 0.16); }
+/* "Early preview": its own small pill centred just under the nav box, outside it, so the nav's own layout is untouched */
+.preview-flag { position: absolute; z-index: 9; top: 78px; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 0.4rem; margin: 0; padding: 3px 10px 3px 9px; border-radius: 999px; background: rgb(20 15 12 / 0.72); box-shadow: inset 0 0 0 1px var(--line-2); font-size: 0.75rem; line-height: 1.3; color: var(--text-2); white-space: nowrap; }
+.preview-flag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.win__lead { display: inline-flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.preview-flag--bar { position: static; transform: none; background: none; }
+[data-theme="light"] .preview-flag { background: rgb(251 250 248 / 0.8); }
 .brand { font-family: var(--font-display); display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 1.25rem; letter-spacing: -0.03em; }
 .brand svg, .win__brand svg { width: 26px; height: 18px; }
 .brand svg path:first-child, .win__brand svg path:first-child { fill: var(--text); }

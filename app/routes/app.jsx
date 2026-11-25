@@ -325,13 +325,18 @@ export default function App() {
       )}
       <div className="win">
         <div className="win__bar">
-          <Link className="win__brand" to="/" aria-label="ffwd, home">
-            <svg viewBox="0 0 28 20" aria-hidden="true">
-              <path d="M0 0 14 7v6L0 20Z" fill="var(--text)" />
-              <path d="M17 5l11 5-11 5Z" fill="var(--accent)" />
-            </svg>
-            <span>ffwd</span>
-          </Link>
+          <div className="win__lead">
+            <Link className="win__brand" to="/" aria-label="ffwd, home">
+              <svg viewBox="0 0 28 20" aria-hidden="true">
+                <path d="M0 0 14 7v6L0 20Z" fill="var(--text)" />
+                <path d="M17 5l11 5-11 5Z" fill="var(--accent)" />
+              </svg>
+              <span>ffwd</span>
+            </Link>
+            <span className="preview-flag preview-flag--bar">
+              Early preview
+            </span>
+          </div>
           <StatusDot status={dot} />
         </div>
 

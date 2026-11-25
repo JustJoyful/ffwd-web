@@ -52,13 +52,10 @@ export default function Home() {
   return (
     <>
       <header className="nav">
-        <div className="brandrow">
-          <a className="brand" href="/" aria-label="ffwd, home">
-            <Logo />
-            <span>ffwd</span>
-          </a>
-          <span className="preview-tag">Early preview</span>
-        </div>
+        <a className="brand" href="/" aria-label="ffwd, home">
+          <Logo />
+          <span>ffwd</span>
+        </a>
         <nav aria-label="Main">
           <a href="/chores">Chores</a>
           <a href="#checked">How it checks</a>
@@ -71,6 +68,7 @@ export default function Home() {
           </a>
         </div>
       </header>
+      <p className="preview-flag">Early preview</p>
 
       <main id="main" ref={ref}>
         <div className="top">

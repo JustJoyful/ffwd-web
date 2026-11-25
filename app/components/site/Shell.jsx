@@ -13,26 +13,26 @@ const Logo = () => (
 
 export function SiteNav() {
   return (
-    <header className="nav">
-      <div className="brandrow">
+    <>
+      <header className="nav">
         <a className="brand" href="/" aria-label="ffwd, home">
           <Logo />
           <span>ffwd</span>
         </a>
-        <span className="preview-tag">Early preview</span>
-      </div>
-      <nav aria-label="Main">
-        <a href="/chores">Chores</a>
-        <a href="/#checked">How it checks</a>
-        <a href="/privacy">Privacy</a>
-        <a href="#">GitHub</a>
-      </nav>
-      <div className="nav__end">
-        <a className="btn btn--sm btn--ghost" href="/app">
-          Open ffwd
-        </a>
-      </div>
-    </header>
+        <nav aria-label="Main">
+          <a href="/chores">Chores</a>
+          <a href="/#checked">How it checks</a>
+          <a href="/privacy">Privacy</a>
+          <a href="#">GitHub</a>
+        </nav>
+        <div className="nav__end">
+          <a className="btn btn--sm btn--ghost" href="/app">
+            Open ffwd
+          </a>
+        </div>
+      </header>
+      <p className="preview-flag">Early preview</p>
+    </>
   );
 }
 
