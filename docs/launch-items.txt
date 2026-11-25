@@ -11,9 +11,13 @@ writes from the VITE_* values the build was made with.
    engine (it now says "ffwd's video engine didn't start", but the tool does not work).
    The core must be served from R2 (or split into files under 25 MiB). The plan in WEB_ARCHITECTURE.md section 8 is R2 on
    an assets host with CORS for the site origin, `Cross-Origin-Resource-Policy: cross-origin`, and a versioned path.
-   NOT DONE: FFMPEG_CORE_BASE (app/agent/config.js) is still the fixed string "/ffmpeg"; it has to become a build-time
-   value when the host exists, and the CSP connect-src in scripts/postbuild.mjs has to name that host.
-   check-release fails on this today, by file name, so it cannot be forgotten.
+   DONE in code (2026-11-26): FFMPEG_CORE_BASE is now the build-time value VITE_FFMPEG_CORE_BASE (an https URL without a
+   trailing slash, default "/ffmpeg"); the CSP connect-src names that host and build-info.json records it; check:release
+   then requires https and skips the in-build file check. STILL TO DO by the owner: create the R2 bucket, upload the three
+   files (ffmpeg-core.js, ffmpeg-core.wasm, ffmpeg-core.worker.js from @ffmpeg/core-mt 0.12.10) under a versioned path,
+   attach a public custom domain, set CORS (allowed origin = the site origin, GET, HEAD), and build with
+   VITE_FFMPEG_CORE_BASE=https://<assets host>/ffmpeg/0.12.10. The page fetches them with fetch() (so CORS is needed)
+   and turns them into blob URLs.
 
 2. The model manifest (D-053). VITE_MODEL_MANIFEST_URL must be set at build time to the https URL of ffwd-model.json at a
    PINNED Hugging Face tag or 40-hex commit (e.g. https://huggingface.co/<owner>/ffwd-0.6b/resolve/v1.0.0/ffwd-model.json),

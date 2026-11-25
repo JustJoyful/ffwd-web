@@ -14,12 +14,13 @@ const origin = (u) => {
 };
 
 /**
- * @param {{ modelUrl?: string | null, analyticsHost?: string | null, feedbackUrl?: string | null, dev?: boolean }} p analyticsHost only when analytics is on
+ * @param {{ modelUrl?: string | null, analyticsHost?: string | null, feedbackUrl?: string | null, coreBase?: string | null, dev?: boolean }} p analyticsHost only when analytics is on; coreBase only when the ffmpeg core is hosted elsewhere
  */
 export function buildCsp({
   modelUrl,
   analyticsHost,
   feedbackUrl,
+  coreBase,
   dev = false,
 }) {
   const model = origin(modelUrl ?? "");
@@ -37,6 +38,8 @@ export function buildCsp({
     analyticsHost ? origin(analyticsHost) : null,
     // opt-in feedback (separate from analytics): only when the build has VITE_FEEDBACK_URL
     feedbackUrl ? origin(feedbackUrl) : null,
+    // the ffmpeg core, when it is served from another host (R2): fetched with fetch() and turned into blob URLs
+    coreBase && /^https:/.test(coreBase) ? origin(coreBase) : null,
     dev ? "ws://localhost:* http://localhost:*" : null,
   ].filter(Boolean);
   return [

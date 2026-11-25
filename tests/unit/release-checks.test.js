@@ -134,6 +134,17 @@ describe("releaseProblems", () => {
       /ffmpeg\/ffmpeg-core\.wasm is missing/,
     );
   });
+  test("an external ffmpeg core (VITE_FFMPEG_CORE_BASE) needs no core files in the build, but must be https", () => {
+    const none = build((d) => rmSync(join(d, "ffmpeg"), { recursive: true }));
+    const ext = { ...GOOD, coreBase: "https://assets.example.org/ffmpeg" };
+    expect(check(none, ext)).toEqual([]);
+    expect(
+      check(none, { ...GOOD, coreBase: "http://assets.example.org/f" }).join(
+        "\n",
+      ),
+    ).toMatch(/VITE_FFMPEG_CORE_BASE .* must be an https URL/);
+    expect(check(none).join("\n")).toMatch(/ffmpeg-core\.wasm is missing/);
+  });
   test("a file over 25 MiB fails and is named; exactly 25 MiB does not", () => {
     const big = build((d) =>
       truncateSync(join(d, "ffmpeg", "ffmpeg-core.wasm"), PAGES_FILE_LIMIT + 1),

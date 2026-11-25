@@ -28,6 +28,7 @@ const csp = buildCsp({
     ? (env.VITE_POSTHOG_HOST ?? "https://us.i.posthog.com")
     : null,
   feedbackUrl: env.VITE_FEEDBACK_URL || null,
+  coreBase: env.VITE_FFMPEG_CORE_BASE || null,
 });
 const headers = readFileSync(`${OUT}/_headers`, "utf8");
 const marker = "  Referrer-Policy: strict-origin-when-cross-origin\n";
@@ -53,6 +54,8 @@ writeFileSync(
       localTest: env.VITE_MODEL_LOCAL_TEST === "1",
       posthogKey: Boolean(env.VITE_POSTHOG_KEY),
       feedbackUrl: env.VITE_FEEDBACK_URL || null,
+      // where the ffmpeg core is served from (null = this site's own /ffmpeg)
+      coreBase: env.VITE_FFMPEG_CORE_BASE || null,
     },
     null,
     2,

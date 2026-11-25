@@ -32,7 +32,7 @@ export function* walk(dir) {
 }
 
 /**
- * @param {{ out: string, info: { appVersion?: string, scripted?: boolean, modelUrl?: string | null, modelManifestSha256?: string | null, localTest?: boolean, posthogKey?: boolean, feedbackUrl?: string | null } | null, allowAnalytics?: boolean }} p
+ * @param {{ out: string, info: { appVersion?: string, scripted?: boolean, modelUrl?: string | null, modelManifestSha256?: string | null, localTest?: boolean, posthogKey?: boolean, feedbackUrl?: string | null, coreBase?: string | null } | null, allowAnalytics?: boolean }} p
  *   `info` is what scripts/postbuild.mjs recorded at build time (null when it is missing).
  * @returns {string[]} one plain sentence per problem; empty when the build may be published
  */
@@ -90,11 +90,19 @@ export function releaseProblems({ out, info, allowAnalytics = false }) {
   if (!existsSync(out))
     return [...problems, `${out} does not exist: run \`pnpm build\`.`];
 
-  for (const f of CORE_FILES)
-    if (!existsSync(join(out, f)))
-      problems.push(
-        `${out}/${f} is missing: the page would fetch the 404 page as its video engine (run \`pnpm copy-core\` before building, or host the core elsewhere).`,
-      );
+  // The core is either this site's own /ffmpeg (then the files must be in the build, and each under the Pages limit) or an
+  // external https host named by VITE_FFMPEG_CORE_BASE (then it must not be local and nothing is checked in the build).
+  const external = info?.coreBase ?? null;
+  if (external && !/^https:\/\/[^/]+/.test(external))
+    problems.push(
+      `VITE_FFMPEG_CORE_BASE is "${external}": it must be an https URL of the host that serves the ffmpeg core.`,
+    );
+  if (!external)
+    for (const f of CORE_FILES)
+      if (!existsSync(join(out, f)))
+        problems.push(
+          `${out}/${f} is missing: the page would fetch the 404 page as its video engine (run \`pnpm copy-core\` before building, or set VITE_FFMPEG_CORE_BASE to the host that serves the core).`,
+        );
 
   let key = false;
   for (const f of walk(out)) {

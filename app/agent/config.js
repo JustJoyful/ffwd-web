@@ -36,7 +36,12 @@ export const ORIENTATION_MIN_GAP = 4.0;
 
 // ffmpeg.wasm runtime (Plan C). Values the Phase 0 browser spike measured; Python twins noted where there are any.
 // The core (about 31 MB) is copied to public/ffmpeg by scripts/copy-core.mjs; production hosting is Plan D/E.
-export const FFMPEG_CORE_BASE = "/ffmpeg";
+// In a hosted build VITE_FFMPEG_CORE_BASE points at the host that serves the three core files (the 31 MB wasm does not fit
+// on Cloudflare Pages, which allows 25 MiB per file): an https URL without a trailing slash, with CORS for the site origin.
+// Unset, the core comes from the site itself (/ffmpeg, copied by `pnpm copy-core`), as in development and the e2e tests.
+export const FFMPEG_CORE_BASE = (
+  import.meta.env?.VITE_FFMPEG_CORE_BASE || "/ffmpeg"
+).replace(/\/+$/, "");
 // Re-encodes deadlock in core-mt 0.12.10 when FFmpeg picks its own thread count (copy works, every encode hangs), so
 // the harness caps threads on every output. The same happens with auto decoder threads and two inputs (concat).
 export const FFMPEG_THREADS = 4;

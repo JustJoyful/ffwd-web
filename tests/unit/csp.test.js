@@ -10,6 +10,18 @@ describe("buildCsp (review S5)", () => {
       "connect-src 'self' blob: https://models.example.org",
     );
   });
+  test("an external ffmpeg core host is allowed only when it is an https URL", () => {
+    const c = buildCsp({
+      modelUrl: "https://m.example.org/x",
+      coreBase: "https://assets.example.org/ffmpeg/0.12.10",
+    });
+    expect(dir(c, "connect-src")).toBe(
+      "connect-src 'self' blob: https://m.example.org https://assets.example.org",
+    );
+    expect(dir(buildCsp({ coreBase: "/ffmpeg" }), "connect-src")).toBe(
+      "connect-src 'self' blob:",
+    );
+  });
   test("the analytics host is added only when given", () => {
     const c = buildCsp({
       modelUrl: "https://m.example.org/x",
