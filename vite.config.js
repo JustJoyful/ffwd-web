@@ -17,6 +17,7 @@ const isolateDevServer = {
           buildCsp({
             modelUrl: process.env.VITE_MODEL_MANIFEST_URL,
             analyticsHost: null,
+            feedbackUrl: process.env.VITE_FEEDBACK_URL,
             dev: true,
           }),
         );

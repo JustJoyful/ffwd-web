@@ -101,6 +101,16 @@ describe("releaseProblems", () => {
       /scripted build/,
     );
   });
+  test("a feedback URL must be https; none is fine", () => {
+    const dir = build();
+    expect(
+      check(dir, { ...GOOD, feedbackUrl: "https://fb.example.workers.dev" }),
+    ).toEqual([]);
+    expect(check(dir, { ...GOOD, feedbackUrl: null })).toEqual([]);
+    expect(
+      check(dir, { ...GOOD, feedbackUrl: "http://fb.example.org" }).join("\n"),
+    ).toMatch(/VITE_FEEDBACK_URL must be an https URL/);
+  });
   test("a PostHog key fails unless switching analytics on was decided, in the build facts and in the output", () => {
     expect(check(build(), { ...GOOD, posthogKey: true }).join("\n")).toMatch(
       /analytics is meant to be off/,

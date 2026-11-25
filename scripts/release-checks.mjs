@@ -32,7 +32,7 @@ export function* walk(dir) {
 }
 
 /**
- * @param {{ out: string, info: { appVersion?: string, scripted?: boolean, modelUrl?: string | null, modelManifestSha256?: string | null, localTest?: boolean, posthogKey?: boolean } | null, allowAnalytics?: boolean }} p
+ * @param {{ out: string, info: { appVersion?: string, scripted?: boolean, modelUrl?: string | null, modelManifestSha256?: string | null, localTest?: boolean, posthogKey?: boolean, feedbackUrl?: string | null } | null, allowAnalytics?: boolean }} p
  *   `info` is what scripts/postbuild.mjs recorded at build time (null when it is missing).
  * @returns {string[]} one plain sentence per problem; empty when the build may be published
  */
@@ -77,6 +77,10 @@ export function releaseProblems({ out, info, allowAnalytics = false }) {
     if (info.scripted)
       problems.push(
         "This is a scripted build (VITE_SCRIPTED_POLICY=1): the model is replaced by replies from the page. Never publish it.",
+      );
+    if (info.feedbackUrl && !/^https:\/\/[^\s/]+/.test(info.feedbackUrl))
+      problems.push(
+        "VITE_FEEDBACK_URL must be an https URL (it is where opt-in feedback is sent); unset it to switch feedback off.",
       );
     if (info.posthogKey && !allowAnalytics)
       problems.push(
