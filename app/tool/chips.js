@@ -2,6 +2,7 @@
 // home page (Keep, Length, Picture, Format, Size, Sound, ...). Only fields the spec sets are named as changes; the
 // rest read "unchanged". The same file maps a chip to the FFmpeg flags that implement it, for the command reveal.
 import { displaySize } from "../agent/checker/quality.js";
+import { specEffects } from "../agent/consistency.js";
 import { substitute } from "../agent/executor/harness-args.js";
 import { fmt } from "../lib/format.js";
 
@@ -92,6 +93,42 @@ export function chipsFromSpec(spec, inputProbe) {
     put("Quality", "close to the original");
   if (spec.outputs.length > 1) put("Results", String(spec.outputs.length));
   return [...changed, ...same];
+}
+
+/**
+ * The plan as two groups, "Will change" and "Keeps", compared with what the video already is. Starts from chipsFromSpec,
+ * then moves a chip to "Keeps" when it names what the input already has (the same container, a cut that keeps the whole
+ * clip), drops the Picture chip for an input with no picture, and names the sound when it stays. `changesNothing` is
+ * specEffects' definition: every field the spec sets already equals the input.
+ * @param {{ outputs: object[] }} spec
+ * @param {object} inputProbe
+ * @returns {{ change: Chip[], keep: Chip[], changesNothing: boolean }}
+ */
+export function planGroups(spec, inputProbe) {
+  const o = spec.outputs[0];
+  const fx = specEffects(spec, inputProbe);
+  const hasV = inputProbe?.streams?.some((x) => x.type === "video");
+  const hasA = inputProbe?.streams?.some((x) => x.type === "audio");
+  let chips = chipsFromSpec(spec, inputProbe).map((c) => [...c]);
+  if (o.kind === "video" || o.kind === "audio") {
+    const containers = String(inputProbe?.container ?? "").split(",");
+    const noop = (label) =>
+      (label === "Format" &&
+        containers.includes(o.container) &&
+        !isSet(o.video?.codec)) ||
+      ((label === "Keep" || label === "Length") && !fx.trim);
+    chips = chips.map(([l, v, ch]) => (ch && noop(l) ? [l, v] : [l, v, ch]));
+    if (!hasV) chips = chips.filter(([l]) => l !== "Picture"); // nothing to keep or remove
+    if (
+      hasA &&
+      o.audio?.present !== false &&
+      !chips.some(([l]) => l === "Sound")
+    )
+      chips.push(["Sound", "kept"]);
+  }
+  const change = chips.filter((c) => c[2]);
+  const keep = chips.filter((c) => !c[2]).map(([l, v]) => [l, v]);
+  return { change, keep, changesNothing: fx.changesNothing };
 }
 
 /**
