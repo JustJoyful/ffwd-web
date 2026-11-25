@@ -1,6 +1,6 @@
 {
   "protocol_version": "0.3.0",
-  "source_commit": "f9f1c51f10925b68135002eb938632154d35cb9c",
+  "source_commit": "cb2e869d153125f0eb59137ce1009ac6abdbdbe0",
   "files": {
     "allowlist.json": "d6aefcfa3b03673214ab9ee2b145c242f56ae5bb4a9ce5fb185edff93961a57b",
     "conformance/bench-jobs.json": "9bed3d18448e5e28e8f7169c89c0361cd640d09f5999b7a0e4d27f19d17eac21",
@@ -12,7 +12,7 @@
     "conformance/checker-quality.jsonl": "9ef94ca3324791c482bcd5ce728070731c746738f65dd8432a143b6bbad052ff",
     "conformance/checker-rotation.jsonl": "cc1e520802ff43708dc54d267ccd0c86c1485406b4cf6cedd957a13d10abd311",
     "conformance/describe-spec.jsonl": "63c1763f309120e374ca5aae49527c41b3a85d2ba52ecd1fc62e8a78a771923e",
-    "conformance/model-manifest.jsonl": "887f46aa5ec43b448d95193f2a151e457fc4c3e41371b114bec7cc19d8315e5c",
+    "conformance/model-manifest.jsonl": "ad92501875c363add456c9b598decd167919b1199858ae269a156925f0eceb55",
     "conformance/timing-chores.json": "5ee8d36dfa75fa6f855c51198842a7e131364b0eae26798825c26ac1f6050f60",
     "conformance/validator.jsonl": "20bf095f8f0f31fe557b9431f758e17426f2b3e476d96e79f22e76647bf0e8f6",
     "prompts/chat-template.jinja": "8d12c21330339015cf3856b2c8fd0ade15556f92c87958d3426b832bae029af5",
@@ -21,7 +21,7 @@
     "prompts/system-v1.txt": "56e7d7217b97c122662235cceb96acbf62bd822c6fec25f880035bfff805c724",
     "schemas/action.schema.json": "9c34dc6e1da26d786ed25996e6a2ff3fcfea51d2b2fccca5a416e367c84d47fe",
     "schemas/check.schema.json": "c5b20f44d0be91ca601b8e7fc2ea8ea18277d815582a09200cefc8056d7338db",
-    "schemas/model.schema.json": "4c3f9f52f5a0e3328158440dbb44b679fc553972dcd6e3585ec031d042b02a7a",
+    "schemas/model.schema.json": "799e41a95d5ee6e053231c25ac7a22a701b6da76c4fec1453a1acd326187575a",
     "schemas/probe.schema.json": "fc34f06156cb2c8302f1d7498d3b09aa7abb694c75cc7c79d76204a61cf43e1d",
     "schemas/spec.schema.json": "31aba1911c658b5e6dfd8103bf244d8f7c30fbc52107d99e277e5c6c528e4e0c",
     "schemas/task.schema.json": "f6f3d777877157003270337739d8fcb39124043aef8866560d05122b69201458"
