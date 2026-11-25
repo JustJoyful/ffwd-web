@@ -57,3 +57,17 @@ describe("the privacy page", () => {
     expect(t).not.toMatch(/ffwd keeps no ID in your browser/);
   });
 });
+
+describe("the privacy page: feedback", () => {
+  test("states what is sent, when, where it goes, and that it is separate from analytics", () => {
+    const t = text();
+    expect(t).toContain("Feedback you choose to send");
+    expect(t).toMatch(/sends nothing unless you click Send/);
+    expect(t).toMatch(/request text you typed, with your file's name removed/);
+    expect(t).toMatch(/Not sent: your video, your file names/);
+    expect(t).toMatch(/database that ffwd's owner can read/);
+    expect(t).toMatch(/kept until the owner deletes it/);
+    expect(t).toMatch(/no IP address, no account and no analytics ID/);
+    expect(t).toMatch(/works even if the counting is off/);
+  });
+});

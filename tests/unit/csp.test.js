@@ -38,6 +38,17 @@ describe("buildCsp (review S5)", () => {
       expect(c).toContain(d);
     expect(c).not.toContain("script-src");
   });
+  test("the feedback host is added only when given, and is separate from analytics", () => {
+    expect(
+      dir(
+        buildCsp({ feedbackUrl: "https://fb.example.workers.dev/in" }),
+        "connect-src",
+      ),
+    ).toBe("connect-src 'self' blob: https://fb.example.workers.dev");
+    expect(dir(buildCsp({ feedbackUrl: null }), "connect-src")).toBe(
+      "connect-src 'self' blob:",
+    );
+  });
   test("a bad URL adds nothing", () => {
     expect(dir(buildCsp({ modelUrl: "nonsense" }), "connect-src")).toBe(
       "connect-src 'self' blob:",

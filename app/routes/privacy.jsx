@@ -227,6 +227,41 @@ export default function Privacy() {
             </div>
           </section>
 
+          <section id="feedback" aria-labelledby="fb-h">
+            <h2 id="fb-h">Feedback you choose to send</h2>
+            <div className="prose">
+              <p>
+                When a job fails, or when you say a plan is wrong, ffwd may ask
+                whether you want to send feedback. It sends nothing unless you
+                click Send.
+              </p>
+              <ul>
+                <li>
+                  What is sent: the request text you typed, with your file's
+                  name removed, the plan ffwd showed, and a failure category
+                  from a fixed list. You can see the exact message before you
+                  send it.
+                </li>
+                <li>
+                  Not sent: your video, your file names, or anything from the
+                  counts above.
+                </li>
+                <li>
+                  It goes to a database that ffwd's owner can read. It is kept
+                  until the owner deletes it, to improve ffwd.
+                </li>
+                <li>
+                  It is not linked to you: no IP address, no account and no
+                  analytics ID are stored with it.
+                </li>
+                <li>
+                  It is separate from the counting above and works even if the
+                  counting is off.
+                </li>
+              </ul>
+            </div>
+          </section>
+
           <section id="model-download" aria-labelledby="dl-h">
             <h2 id="dl-h">Where the model comes from</h2>
             <p className="prose">

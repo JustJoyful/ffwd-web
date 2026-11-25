@@ -27,6 +27,7 @@ const csp = buildCsp({
   analyticsHost: env.VITE_POSTHOG_KEY
     ? (env.VITE_POSTHOG_HOST ?? "https://us.i.posthog.com")
     : null,
+  feedbackUrl: env.VITE_FEEDBACK_URL || null,
 });
 const headers = readFileSync(`${OUT}/_headers`, "utf8");
 const marker = "  Referrer-Policy: strict-origin-when-cross-origin\n";
@@ -51,6 +52,7 @@ writeFileSync(
       // VITE_MODEL_LOCAL_TEST=1 is `pnpm release:local` (scripts/serve-release.mjs): the stamp makes check:release refuse it
       localTest: env.VITE_MODEL_LOCAL_TEST === "1",
       posthogKey: Boolean(env.VITE_POSTHOG_KEY),
+      feedbackUrl: env.VITE_FEEDBACK_URL || null,
     },
     null,
     2,

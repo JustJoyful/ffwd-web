@@ -14,9 +14,14 @@ const origin = (u) => {
 };
 
 /**
- * @param {{ modelUrl?: string | null, analyticsHost?: string | null, dev?: boolean }} p analyticsHost only when analytics is on
+ * @param {{ modelUrl?: string | null, analyticsHost?: string | null, feedbackUrl?: string | null, dev?: boolean }} p analyticsHost only when analytics is on
  */
-export function buildCsp({ modelUrl, analyticsHost, dev = false }) {
+export function buildCsp({
+  modelUrl,
+  analyticsHost,
+  feedbackUrl,
+  dev = false,
+}) {
   const model = origin(modelUrl ?? "");
   const connect = [
     "'self'",
@@ -30,6 +35,8 @@ export function buildCsp({ modelUrl, analyticsHost, dev = false }) {
       ? "https://*.huggingface.co https://*.hf.co"
       : null,
     analyticsHost ? origin(analyticsHost) : null,
+    // opt-in feedback (separate from analytics): only when the build has VITE_FEEDBACK_URL
+    feedbackUrl ? origin(feedbackUrl) : null,
     dev ? "ws://localhost:* http://localhost:*" : null,
   ].filter(Boolean);
   return [

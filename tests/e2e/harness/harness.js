@@ -6,3 +6,7 @@ import { makeInput } from "../fixtures.js";
 
 window.ffwd = { check, createBrowserRuntime, makeInput };
 window.ffwdReady = true;
+
+// opt-in feedback: the real sender, so a spec can watch the request it makes (tests/e2e/feedback.spec.js)
+import { buildFeedback, sendFeedback } from "../../../app/lib/feedback.js";
+window.ffwd.feedback = { buildFeedback, sendFeedback };
