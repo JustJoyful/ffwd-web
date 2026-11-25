@@ -180,6 +180,7 @@ describe("RunLog", () => {
             ...run(2, [], false),
             ok: false,
             error: "FFmpeg exited with code 1",
+            failure: "option",
           },
         ]}
       />,
@@ -188,8 +189,9 @@ describe("RunLog", () => {
       screen.getByText(/nothing ran: option not allowed: -f/),
     ).toBeTruthy();
     expect(
-      screen.getByText(/FFmpeg stopped: FFmpeg exited with code 1/),
+      screen.getByText(/didn't understand part of the command/),
     ).toBeTruthy();
+    expect(screen.queryByText(/exit|code 1/i)).toBeNull();
   });
 });
 
