@@ -1,13 +1,11 @@
+import { FAILURE_TEXT } from "../../agent/ffmpeg-errors.js";
 import CheckList from "./CheckList.jsx";
 
 /** One sentence for a run that never produced a result. */
 function problem(run) {
   if (run.rejected)
     return `This command was not allowed, so nothing ran: ${run.rejected}`;
-  if (!run.ok)
-    return run.error
-      ? `FFmpeg stopped: ${run.error}`
-      : "FFmpeg stopped before it finished";
+  if (!run.ok) return FAILURE_TEXT[run.failure] ?? FAILURE_TEXT.unknown;
   return run.errors[0] ?? null;
 }
 

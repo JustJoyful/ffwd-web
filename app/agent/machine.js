@@ -9,6 +9,7 @@
 // dispatch(event) resolves when the machine next rests: waiting for the person (awaitingRequest, askingUser,
 // awaitingConfirm) or finished (done, failed, unsupported, unsupportedDevice). Events that do not belong to the current
 // state are ignored without changing it. Events are handled one at a time, in order.
+import { consistencyProblems } from "./consistency.js";
 import { describeSpec } from "./describe-spec.js";
 import { MAX_ASK_USER, MAX_RUNS, MAX_TURNS } from "./config.js";
 import { createJob, executeRun, nextAction, observe } from "./loop.js";
@@ -217,6 +218,24 @@ export function createMachine(deps) {
           if (job.runs >= MAX_RUNS) {
             observe(job, reply, { error: "run budget exhausted" });
             return fail("run_budget");
+          }
+          // The command must do what the confirmed plan says (consistency.js). A mismatch is fed back like any invalid
+          // action: it costs a turn, not a run, and nothing executes.
+          const mismatch = consistencyProblems(
+            job.spec,
+            job.inputs[0]?.probe,
+            action.args,
+          );
+          if (mismatch.length) {
+            observe(
+              job,
+              reply,
+              {
+                error: `the command does not match the confirmed plan: ${mismatch.join(" ")} Fix the command, not the spec`,
+              },
+              { invalid: true },
+            );
+            continue;
           }
           const r = await executeRun(job, action, deps, {
             onChecking: () => set({ name: "checking", ...snap() }),

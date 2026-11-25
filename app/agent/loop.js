@@ -6,6 +6,7 @@
 import { parseAction } from "./actions.js";
 import { check } from "./checker/index.js";
 import { STDERR_TAIL_CHARS } from "./config.js";
+import { classifyFailure } from "./ffmpeg-errors.js";
 import { validateRun } from "./validator.js";
 import SYSTEM_PROMPT from "../../protocol/prompts/system-v1.txt?raw";
 
@@ -22,6 +23,7 @@ import SYSTEM_PROMPT from "../../protocol/prompts/system-v1.txt?raw";
  * @property {boolean} ok FFmpeg ran and wrote output
  * @property {string | null} rejected the allowlist reason, when it never ran
  * @property {string | null} error executor error text, when FFmpeg failed
+ * @property {string | null} failure why FFmpeg failed, as a class (ffmpeg-errors.js); the page shows a sentence for it
  * @property {boolean} passed every spec output was produced and passed
  * @property {Array<{ output: string, field: string, expected: unknown, actual: unknown, ok: boolean }>} checks
  * @property {string[]} errors per-output check errors ("out1: output has no media")
@@ -160,6 +162,7 @@ export async function executeRun(
     ok: false,
     rejected: null,
     error: null,
+    failure: null,
     passed: false,
     checks: [],
     errors: [],
@@ -203,6 +206,7 @@ export async function executeRun(
   }
   if (!res.ok) {
     entry.error = res.error ?? null;
+    entry.failure = classifyFailure(res.log);
     return finish(
       { run_ok: false, rejected: null, stderr_tail: tail(res.log) },
       false,

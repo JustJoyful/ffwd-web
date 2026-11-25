@@ -159,3 +159,72 @@ describe("DownloadButton failures", () => {
     expect(screen.getByRole("button", { name: "Downloaded" })).toBeTruthy();
   });
 });
+
+describe("failed with an unchecked output (2d)", () => {
+  const failedRun = (outputs) => ({
+    n: 4,
+    args: ["-i", "{in:clip}", "{out:out1}"],
+    ok: true,
+    error: null,
+    passed: false,
+    checks: [
+      {
+        output: "out1",
+        field: "size_max_bytes",
+        expected: 2_000_000,
+        actual: 3_200_000,
+        ok: false,
+      },
+    ],
+    errors: [],
+    outputs,
+  });
+  const failedState = (outputs) => ({
+    ...doneState({}),
+    name: "failed",
+    reason: "run_budget",
+    history: [failedRun(outputs)],
+    runs: 4,
+  });
+  const noSuccess = () => {
+    expect(screen.queryByText(/^Done/)).toBeNull();
+    expect(screen.queryByText(/every check passed/i)).toBeNull();
+    expect(document.querySelector(".run__done")).toBeNull();
+    expect(document.querySelector('[data-passed="true"]')).toBeNull();
+  };
+  test("lists the differences, offers Download anyway, never says success", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    show(failedState({ out1: "run4/out1.mp4" }), async () => new Blob(["x"]));
+    await flush();
+    expect(screen.getByText("This result doesn’t match the plan")).toBeTruthy();
+    expect(
+      screen.getByText(/Size: the file has 3\.2 MB \(over your 2 MB limit\)/),
+    ).toBeTruthy();
+    const btn = screen.getByRole("button", { name: "Download anyway" });
+    expect(btn.disabled).toBe(false);
+    expect(
+      screen.getByText(/a-ffwd-unchecked\.mp4|-ffwd-unchecked\.mp4/),
+    ).toBeTruthy();
+    noSuccess();
+  });
+  test("no output file: nothing to download and the old notice stays", async () => {
+    show(failedState({}), async () => new Blob(["x"]));
+    await flush();
+    expect(
+      screen.queryByRole("button", { name: "Download anyway" }),
+    ).toBeNull();
+    expect(screen.getByText("Nothing to download")).toBeTruthy();
+    noSuccess();
+  });
+  test("a file that cannot be read keeps the button disabled", async () => {
+    show(failedState({ out1: "run4/out1.mp4" }), async () => {
+      throw new Error("gone");
+    });
+    await flush();
+    expect(
+      screen.getByRole("button", { name: "Download anyway" }).disabled,
+    ).toBe(true);
+    noSuccess();
+  });
+});

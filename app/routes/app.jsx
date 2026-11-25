@@ -24,8 +24,9 @@ import StatusDot from "../components/tool/StatusDot.jsx";
 import Unsupported from "../components/tool/Unsupported.jsx";
 import Viewer from "../components/tool/Viewer.jsx";
 import { MACHINE_REASON, initialModelState } from "../model/contract.js";
+import { describeCheck } from "../tool/checks.js";
 import { bindAnalytics } from "../tool/analytics-bridge.js";
-import { chipsFromSpec, displayArgs, strictnessLines } from "../tool/chips.js";
+import { displayArgs, planGroups, strictnessLines } from "../tool/chips.js";
 import { useTool } from "../tool/store.js";
 
 // The tool. Client-only: no server data and nothing prerendered, because it needs the browser (WebGPU, workers,
@@ -177,10 +178,22 @@ export default function App() {
   const passing = state.history.findLast((r) => r.passed);
   // The first output the spec asked for (its id is not always out1); a job with no single file has no handle.
   const outId = state.spec?.outputs?.[0]?.id ?? "out1";
+  // A failed job whose last run still wrote a file: the file did NOT pass its checks. It can be downloaded, labelled
+  // "unchecked", and is never shown as a result (no Done, no preview).
+  const lastRun = state.history.at(-1);
+  const unchecked =
+    name === "failed" &&
+    lastRun?.ok &&
+    !lastRun.passed &&
+    lastRun.outputs?.[outId]
+      ? lastRun
+      : null;
   const outHandle =
-    name === "done" ? (passing?.outputs?.[outId] ?? null) : null;
+    name === "done"
+      ? (passing?.outputs?.[outId] ?? null)
+      : (unchecked?.outputs?.[outId] ?? null);
   const container = state.spec?.outputs?.[0]?.container || "mp4";
-  const outName = `${stem(file?.name ?? "video")}-ffwd.${container}`;
+  const outName = `${stem(file?.name ?? "video")}-ffwd${unchecked ? "-unchecked" : ""}.${container}`;
   useEffect(() => {
     if (!outHandle || !store.runtime.readOutput) return;
     let stale = false;
@@ -210,8 +223,10 @@ export default function App() {
         ? "ready"
         : "failed";
 
-  const chips =
-    state.spec && input ? chipsFromSpec(state.spec, input.probe) : [];
+  const groups =
+    state.spec && input ? planGroups(state.spec, input.probe) : null;
+  // the command reveal still highlights by chip, changed or not
+  const chips = groups ? [...groups.change, ...groups.keep] : [];
   const showPlan =
     chips.length > 0 &&
     ["awaitingConfirm", "running", "checking", "done", "failed"].includes(name);
@@ -378,6 +393,8 @@ export default function App() {
                   <PlanCard
                     key={state.request}
                     chips={chips}
+                    noChange={groups.changesNothing}
+                    onReword={() => field.current?.focus()}
                     strictness={strictnessLines(state.spec)}
                     state={
                       name === "awaitingConfirm"
@@ -420,7 +437,42 @@ export default function App() {
                           : "Every check passed, but this result can't be saved as one file yet"}
                     </p>
                   )}
-                  {name === "failed" && (
+                  {name === "failed" && unchecked && (
+                    <div className="notice notice--bad" role="status">
+                      <p className="notice__t">
+                        This result doesn&rsquo;t match the plan
+                      </p>
+                      <p>
+                        ffwd could not make a file that passes its checks, so
+                        don&rsquo;t rely on the last one. It differs from the
+                        plan like this:
+                      </p>
+                      <ul className="notice__list">
+                        {unchecked.checks
+                          .filter((c) => !c.ok)
+                          .map((c) => {
+                            const d = describeCheck(c);
+                            return (
+                              <li key={`${c.output}${c.field}`}>
+                                {d.label}: the file has {d.value}
+                                {d.why ? ` (${d.why})` : ""}
+                              </li>
+                            );
+                          })}
+                        {unchecked.checks.every((c) => c.ok) && (
+                          <li>Some of the plan could not be measured.</li>
+                        )}
+                      </ul>
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--ghost"
+                        onClick={again}
+                      >
+                        Try another request
+                      </button>
+                    </div>
+                  )}
+                  {name === "failed" && !unchecked && (
                     <div className="notice notice--bad" role="status">
                       <p className="notice__t">Nothing to download</p>
                       <p>
@@ -444,7 +496,26 @@ export default function App() {
               </Step>
 
               <Step n={5} title="Save" mod={name === "done" ? "is-done" : ""}>
-                {name !== "done" && <p className="step__hint">{IDLE.save}</p>}
+                {name !== "done" && !unchecked && (
+                  <p className="step__hint">{IDLE.save}</p>
+                )}
+                {unchecked && (
+                  <div className="save">
+                    <DownloadButton
+                      key={outHandle}
+                      blob={result?.blob ?? null}
+                      name={outName}
+                      label="Download anyway"
+                    />
+                    <small>
+                      {fileState === "ready"
+                        ? `${outName}, ${sizeText(result.blob.size)}. Not checked: it does not match the plan.`
+                        : fileState === "pending"
+                          ? "Getting the file ready"
+                          : "This result can't be saved as one file"}
+                    </small>
+                  </div>
+                )}
                 {name === "done" && (
                   <div className="reveal is-on">
                     <div className="save">
@@ -484,7 +555,7 @@ export default function App() {
             <div className="stage">
               <Viewer
                 originalUrl={unreadable ? null : originalUrl}
-                resultUrl={result?.url ?? null}
+                resultUrl={name === "done" ? (result?.url ?? null) : null}
                 name={file?.name ?? ""}
                 audioOnly={state.spec?.outputs?.[0]?.kind === "audio"}
               />

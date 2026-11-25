@@ -202,6 +202,17 @@
 .chips {
   list-style: none;
 }
+.plan__group {
+  display: grid;
+  gap: 6px;
+}
+.plan__title {
+  margin: 0;
+  font-weight: 600;
+}
+.plan__warn {
+  margin: 0;
+}
 .chip {
   max-width: 100%;
   overflow-wrap: anywhere;
