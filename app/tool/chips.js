@@ -96,37 +96,56 @@ export function chipsFromSpec(spec, inputProbe) {
 }
 
 /**
- * The plan as two groups, "Will change" and "Keeps", compared with what the video already is. Starts from chipsFromSpec,
- * then moves a chip to "Keeps" when it names what the input already has (the same container, a cut that keeps the whole
- * clip), drops the Picture chip for an input with no picture, and names the sound when it stays. `changesNothing` is
- * specEffects' definition: every field the spec sets already equals the input.
+ * The plan as two groups, "Will change" and "Keeps", compared with what the video already is. Starts from chipsFromSpec;
+ * a chip stays under "Will change" only when its value differs from the probed input. A value that equals the input
+ * (same container, frame rate, video or sound codec, pixel format, 0 sync offset, a cut that keeps the whole clip, a size
+ * limit already met, a quality floor) moves to "Keeps"; "Turn none" is dropped (the spec's rotation is the net turn, 0
+ * is nothing). The Picture chip is dropped for an input with no picture; the sound is named when it stays.
+ * `changesNothing` is specEffects' definition: every field the spec sets already equals the input.
  * @param {{ outputs: object[] }} spec
  * @param {object} inputProbe
+ * @param {{ name?: string, type?: string } | null} [file] the chosen file; its extension or MIME type says whether the
+ *   container changes (see consistency.js containerChanges)
  * @returns {{ change: Chip[], keep: Chip[], changesNothing: boolean }}
  */
-export function planGroups(spec, inputProbe) {
+export function planGroups(spec, inputProbe, file = null) {
   const o = spec.outputs[0];
-  const fx = specEffects(spec, inputProbe);
-  const hasV = inputProbe?.streams?.some((x) => x.type === "video");
-  const hasA = inputProbe?.streams?.some((x) => x.type === "audio");
+  const fx = specEffects(spec, inputProbe, file);
+  const vin = inputProbe?.streams?.find((x) => x.type === "video");
+  const ain = inputProbe?.streams?.find((x) => x.type === "audio");
+  const v = o.video ?? {};
+  const a = o.audio ?? {};
   let chips = chipsFromSpec(spec, inputProbe).map((c) => [...c]);
   if (o.kind === "video" || o.kind === "audio") {
-    const noop = (label) =>
-      (label === "Format" &&
-        !containerChanges(o.container, inputProbe) &&
-        !isSet(o.video?.codec)) ||
-      ((label === "Keep" || label === "Length") && !fx.trim);
-    chips = chips.map(([l, v, ch]) => (ch && noop(l) ? [l, v] : [l, v, ch]));
-    if (!hasV) chips = chips.filter(([l]) => l !== "Picture"); // nothing to keep or remove
-    if (
-      hasA &&
-      o.audio?.present !== false &&
-      !chips.some(([l]) => l === "Sound")
-    )
+    const near = (x, y) => isSet(y) && Math.abs(x - y) <= y * 0.01;
+    const sameFormat =
+      !containerChanges(o.container, inputProbe, file) &&
+      (!isSet(v.codec) || v.codec === vin?.codec) &&
+      (!isSet(v.pix_fmt) || v.pix_fmt === vin?.pix_fmt);
+    const noop = {
+      Format: sameFormat,
+      Keep: !fx.trim,
+      Length: !fx.trim,
+      "Frame rate": near(v.fps, vin?.fps),
+      Sound: isSet(a.codec) && a.codec === ain?.codec && a.present !== false,
+      "Sound sync": a.offset_ms === 0,
+      Size:
+        isSet(o.size_max_bytes) &&
+        isSet(inputProbe?.size_bytes) &&
+        o.size_max_bytes >= inputProbe.size_bytes,
+      Quality: true, // a floor on the result, not a change to it
+    };
+    chips = chips
+      .filter(
+        ([l, val]) => !(l === "Turn" && v.rotation === 0 && val === "none"),
+      )
+      .map(([l, val, ch]) => (ch && noop[l] ? [l, val] : [l, val, ch]));
+    if (!vin) chips = chips.filter(([l]) => l !== "Picture"); // nothing to keep or remove
+    if (ain && a.present !== false && !chips.some(([l]) => l === "Sound"))
       chips.push(["Sound", "kept"]);
   }
   const change = chips.filter((c) => c[2]);
-  const keep = chips.filter((c) => !c[2]).map(([l, v]) => [l, v]);
+  const keep = chips.filter((c) => !c[2]).map(([l, val]) => [l, val]);
   return { change, keep, changesNothing: fx.changesNothing };
 }
 
