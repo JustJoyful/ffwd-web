@@ -34,3 +34,9 @@ screenshots/
 
 # Lighthouse CI working folder
 .lighthouseci/
+
+# public-release files (2026-11-25)
+!README.md
+!THIRD_PARTY_NOTICES.md
+!docs/public/*.md
+*.log
