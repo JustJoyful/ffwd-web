@@ -26,4 +26,20 @@ writes from the VITE_* values the build was made with.
 3. Analytics are off unless VITE_POSTHOG_KEY is set at build time. check-release fails if a key is in the build, unless
    FFWD_ANALYTICS_ON=1 is set to say the owner decided to switch it on. (Persistence is "memory": see app/config.js.)
 
+3b. Feedback (opt-in "send this request text", separate from analytics). Off unless VITE_FEEDBACK_URL (https) is set at
+   build time; then the CSP connect-src gets that host, build-info.json records it, and check:release fails on a
+   non-https URL. Backend: workers/feedback (Cloudflare Worker + D1; D1 over KV because you can query and count rows with
+   SQL and the free tier is enough, while KV can only fetch by key). NOT deployed. Commands (run in workers/feedback):
+     npx wrangler login
+     npx wrangler d1 create ffwd-feedback          # paste the printed database_id into wrangler.toml
+     npx wrangler d1 execute ffwd-feedback --remote --file=schema.sql
+     # edit wrangler.toml: ALLOWED_ORIGIN = "https://<your site origin>"   (comma-separate several)
+     npx wrangler deploy                           # prints https://ffwd-feedback.<you>.workers.dev
+     # build the site with VITE_FEEDBACK_URL=https://ffwd-feedback.<you>.workers.dev
+   Read it:
+     npx wrangler d1 execute ffwd-feedback --remote --command "select created_at, kind, failure, request, plan from feedback order by created_at desc limit 50"
+     npx wrangler d1 execute ffwd-feedback --remote --command "select failure, count(*) n from feedback group by failure"
+   Remove one row: ... --command "delete from feedback where id = '<id>'". Optional: a Cloudflare rate-limiting rule on the Worker.
+   OWNER DECISION: retention. The privacy page says "kept until the owner deletes it"; set a routine or change the sentence.
+
 4. Placeholder text on the pages ([contact address], [role line], the [Confirm ...] notes, the SITE_URL placeholder).

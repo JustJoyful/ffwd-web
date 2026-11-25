@@ -1,0 +1,12 @@
+name = "ffwd-feedback"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Comma-separated origins allowed to post (the site's origin, no trailing slash). PLACEHOLDER: replace before deploying.
+ALLOWED_ORIGIN = "https://ffwd.example"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ffwd-feedback"
+database_id = "PLACEHOLDER-run-wrangler-d1-create-and-paste-the-id"
