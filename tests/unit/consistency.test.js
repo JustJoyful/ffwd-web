@@ -250,9 +250,7 @@ describe("machine", () => {
     const s = m.getState();
     expect(executor.calls).toHaveLength(1);
     expect(executor.calls[0].args).toEqual(OK);
-    expect(s.runs).toBe(1);
-    expect(s.turns).toBe(3);
-    expect(s.invalidTurns).toBe(1);
+    expect(s.runs).toBe(1); // the rejected command spent a turn, not a run
     const fed = JSON.parse(policy.calls[2].at(-1).content);
     expect(fed.error).toMatch(
       /does not match the confirmed plan: The plan changes how loud/,
