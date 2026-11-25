@@ -135,11 +135,13 @@ describe("/app with the model ready", () => {
       type: "requestSubmitted",
       request: "make it small",
     });
-    expect(
+    // nothing blocks the request, so the field is described by the standing tip, not by a "why not" hint
+    const tip = document.getElementById(
       screen
         .getByLabelText("What should happen to your video?")
         .getAttribute("aria-describedby"),
-    ).toBeNull();
+    );
+    expect(tip.textContent).toMatch(/Works best with clear requests/);
     expect(document.querySelector("[data-phase]")).toBeNull();
   });
 });

@@ -14,10 +14,13 @@ const Logo = () => (
 export function SiteNav() {
   return (
     <header className="nav">
-      <a className="brand" href="/" aria-label="ffwd, home">
-        <Logo />
-        <span>ffwd</span>
-      </a>
+      <div className="brandrow">
+        <a className="brand" href="/" aria-label="ffwd, home">
+          <Logo />
+          <span>ffwd</span>
+        </a>
+        <span className="preview-tag">Early preview</span>
+      </div>
       <nav aria-label="Main">
         <a href="/chores">Chores</a>
         <a href="/#checked">How it checks</a>

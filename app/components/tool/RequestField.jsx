@@ -33,7 +33,9 @@ export default function RequestField({
         value={value}
         readOnly={locked}
         aria-readonly={locked || undefined}
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-describedby={
+          hint ? `${id}-hint` : locked ? undefined : `${id}-tip`
+        }
         placeholder="For example: cut the first 3 seconds"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -43,6 +45,13 @@ export default function RequestField({
           }
         }}
       />
+      {!locked && (
+        <p className="step__hint request__tip" id={`${id}-tip`}>
+          Works best with clear requests like &lsquo;cut the first 3
+          seconds&rsquo; or &lsquo;make it 720p&rsquo;. Vague requests may need
+          rewording.
+        </p>
+      )}
       {hint && (
         <p className="step__hint" id={`${id}-hint`}>
           {hint}
