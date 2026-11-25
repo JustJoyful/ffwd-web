@@ -62,3 +62,13 @@ test("the browser-storage choice and Do Not Track are stated", () => {
   expect(text).toMatch(/local storage/i); // the remembered graphics-chip description
   expect(text).toMatch(/Do Not Track or Global Privacy Control, ffwd respects it/);
 });
+
+test("the feedback section is in the built page: opt-in, what is sent, where it is kept", () => {
+  const s = doc.querySelector("#feedback");
+  expect(s).not.toBeNull();
+  expect(s.querySelector("h2").textContent).toBe("Feedback you choose to send");
+  expect(s.textContent).toMatch(/nothing unless you click Send/);
+  expect(s.textContent).toMatch(/Not sent: your video, your file names/);
+  expect(s.textContent).toMatch(/kept until the owner deletes it/);
+  expect(s.textContent).toMatch(/no IP address, no account and no analytics ID/);
+});
