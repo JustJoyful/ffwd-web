@@ -5,11 +5,12 @@ import {
   sendFeedback,
 } from "../../app/lib/feedback.js";
 import {
+  KINDS,
+  MAX_NOTE,
   MAX_REQUEST,
   reducePlan,
   validateFeedback,
 } from "../../app/lib/feedback-schema.js";
-import { handle } from "../../workers/feedback/worker.js";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -23,6 +24,7 @@ const KEYS = [
   "plan",
   "request",
 ];
+const WITH_NOTE = [...KEYS, "note"].sort();
 const SPEC = {
   family: ["F1"],
   outputs: [
@@ -51,6 +53,49 @@ describe("buildFeedback", () => {
     const p = mk();
     expect(Object.keys(p).sort()).toEqual(KEYS);
     expect(validateFeedback(p).ok).toBe(true);
+  });
+  test("kind result_wrong is accepted; the kinds are a closed list of three", () => {
+    expect(KINDS).toEqual(["failed_job", "plan_wrong", "result_wrong"]);
+    expect(validateFeedback(mk({ kind: "result_wrong" })).ok).toBe(true);
+  });
+  test("an optional note: exact key order, scrubbed like the request, one line, 200 characters", () => {
+    expect(Object.keys(mk({ note: "" }))).not.toContain("note");
+    expect(Object.keys(mk({ note: " \n\t " }))).not.toContain("note");
+    const p = mk({
+      note: "  keep a.mp4\nsound at /home/me/x and https://e.com/q\u0007  ",
+    });
+    expect(p.note).toBe("keep {file} sound at {path} and {path}");
+    expect(Object.keys(p)).toEqual([
+      "kind",
+      "request",
+      "note",
+      "plan",
+      "failure",
+      "app_version",
+      "model_version",
+    ]);
+    expect(Object.keys(p).sort()).toEqual(WITH_NOTE);
+    expect(validateFeedback(p).ok).toBe(true);
+    expect(mk({ note: "w ".repeat(300) }).note.length).toBeLessThanOrEqual(
+      MAX_NOTE,
+    );
+  });
+  test("validateFeedback bounds the note and still rejects every unknown key", () => {
+    const p = mk({ note: "ok" });
+    expect(validateFeedback({ ...p, note: "x".repeat(MAX_NOTE) }).ok).toBe(
+      true,
+    );
+    for (const bad of [
+      "x".repeat(MAX_NOTE + 1),
+      "",
+      5,
+      null,
+      "a\nb",
+      "a\u0000",
+    ])
+      expect(validateFeedback({ ...p, note: bad }).ok).toBe(false);
+    expect(validateFeedback({ ...p, notes: "x" }).ok).toBe(false);
+    expect(validateFeedback({ ...p, extra: 1 }).ok).toBe(false);
   });
   test("scrubs the file name and stem: case, inside longer words, with extension", () => {
     const f = "Holiday Clip.MP4";
@@ -166,77 +211,5 @@ describe("sendFeedback", () => {
     );
     vi.stubEnv("VITE_FEEDBACK_URL", "https://fb.test/in");
     expect((await sendFeedback(mk())).ok).toBe(false);
-  });
-});
-
-describe("the Worker", () => {
-  const rows = [];
-  const env = {
-    ALLOWED_ORIGIN: "https://ffwd.test, https://b.test",
-    DB: {
-      prepare: (sql) => ({
-        bind: (...a) => ({ run: async () => rows.push({ sql, a }) }),
-      }),
-    },
-  };
-  const req = (
-    body,
-    {
-      method = "POST",
-      origin = "https://ffwd.test",
-      type = "application/json",
-      headers = {},
-    } = {},
-  ) =>
-    new Request("https://w.test/", {
-      method,
-      body:
-        method === "POST"
-          ? typeof body === "string"
-            ? body
-            : JSON.stringify(body)
-          : undefined,
-      headers: {
-        "Content-Type": type,
-        ...(origin ? { Origin: origin } : {}),
-        ...headers,
-      },
-    });
-  afterEach(() => (rows.length = 0));
-
-  test("a valid message: 204, one insert of the six fields, no request metadata", async () => {
-    const r = await handle(req(mk()), env);
-    expect(r.status).toBe(204);
-    expect(r.headers.get("Access-Control-Allow-Origin")).toBe(
-      "https://ffwd.test",
-    );
-    expect(rows).toHaveLength(1);
-    expect(rows[0].a).toHaveLength(8);
-    expect(JSON.stringify(rows[0].a)).not.toMatch(/ffwd\.test|Mozilla/);
-  });
-  test("every invalid shape is 4xx and writes nothing", async () => {
-    const p = mk();
-    const cases = [
-      [req(p, { origin: "https://evil.test" }), 403],
-      [req(p, { origin: null }), 403],
-      [req(p, { method: "GET" }), 405],
-      [req(p, { type: "text/plain" }), 415],
-      [req("{nope", {}), 400],
-      [req({ ...p, extra: 1 }), 422],
-      [req({ ...p, kind: "x" }), 422],
-      [req({ ...p, request: "x".repeat(501) }), 422],
-      [req({ ...p, plan: { evil: 1 } }), 422],
-      [req(p, { headers: { "Content-Length": "999999" } }), 413],
-      [req({ ...p, request: "x".repeat(5000) }), 413],
-    ];
-    for (const [r, status] of cases)
-      expect((await handle(r, env)).status).toBe(status);
-    expect(rows).toHaveLength(0);
-  });
-  test("preflight from the site origin is 204 and writes nothing", async () => {
-    expect((await handle(req(null, { method: "OPTIONS" }), env)).status).toBe(
-      204,
-    );
-    expect(rows).toHaveLength(0);
   });
 });

@@ -2,7 +2,7 @@
 // by the Worker (workers/feedback/worker.js) before it stores anything. Pure: no imports, so the Worker bundle stays tiny.
 // Nothing here knows about analytics; feedback is a separate door (docs/launch-items.txt, the privacy page).
 
-export const KINDS = ["failed_job", "plan_wrong"];
+export const KINDS = ["failed_job", "plan_wrong", "result_wrong"];
 export const FAILURES = [
   "no_plan",
   "plan_wrong",
@@ -13,6 +13,7 @@ export const FAILURES = [
   "other",
 ];
 export const MAX_REQUEST = 500;
+export const MAX_NOTE = 200;
 export const MAX_BODY_BYTES = 4096;
 const MAX_OUTPUTS = 8;
 
@@ -141,16 +142,28 @@ const KEYS = [
 ];
 
 /**
- * @returns {{ ok: true, value: object } | { ok: false, error: string }} strict: exactly the six keys, closed enums, the
- *   plan must already equal its own reduction, the request is plain text of 1..MAX_REQUEST characters.
+ * @returns {{ ok: true, value: object } | { ok: false, error: string }} strict: the six keys plus an optional `note`
+ *   and nothing else, closed enums, the plan must already equal its own reduction, the request is plain text of
+ *   1..MAX_REQUEST characters, a note (when present) is one line of 1..MAX_NOTE characters.
  */
 export function validateFeedback(p) {
   const bad = (error) => ({ ok: false, error });
   if (!p || typeof p !== "object" || Array.isArray(p))
     return bad("not an object");
   const keys = Object.keys(p);
-  if (keys.length !== KEYS.length || !KEYS.every((k) => keys.includes(k)))
+  if (
+    !KEYS.every((k) => keys.includes(k)) ||
+    keys.some((k) => !KEYS.includes(k) && k !== "note")
+  )
     return bad("wrong keys");
+  if (
+    "note" in p &&
+    (typeof p.note !== "string" ||
+      !p.note.length ||
+      p.note.length > MAX_NOTE ||
+      /\p{Cc}/u.test(p.note))
+  )
+    return bad("note");
   if (!KINDS.includes(p.kind)) return bad("kind");
   if (!FAILURES.includes(p.failure)) return bad("failure");
   if (
