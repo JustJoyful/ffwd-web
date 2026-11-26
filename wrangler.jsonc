@@ -7,5 +7,7 @@
   "assets": {
     "directory": "./build/client",
     "not_found_handling": "404-page",
+    // /app, /privacy ... serve directly (the links and the sitemap have no trailing slash); the default would redirect each one
+    "html_handling": "drop-trailing-slash",
   },
 }
