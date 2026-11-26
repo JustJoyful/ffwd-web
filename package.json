@@ -20,6 +20,7 @@
     "check:release": "node scripts/check-release.mjs",
     "release:local": "node scripts/serve-release.mjs",
     "size": "size-limit",
+    "feedback:read": "node scripts/feedback-read.mjs",
     "lighthouse": "lhci autorun"
   },
   "dependencies": {
