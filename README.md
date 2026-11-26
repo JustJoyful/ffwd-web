@@ -141,7 +141,7 @@ docs/                launch notes
 
 - Your video, file names and file contents never leave your computer.
 - Analytics are off unless a key is set at build time. Events contain only categories and numbers; nothing loads when the browser sends Do Not Track or Global Privacy Control. When on, an anonymous random id is kept in this browser's local storage; no cookies are used.
-- Feedback is opt-in and separate from analytics: nothing is sent unless you click Send, you see the exact message first, and it contains the request text (with your file's name removed), the plan and a failure category, never your video or file names.
+- Feedback is opt-in and separate from analytics: nothing is sent unless you click Send, you see the exact message first, and it contains the request text (with your file's name removed), an optional note, the plan, a failure category and the app and model versions, never your video or file names. Raw feedback is deleted after 90 days.
 - The privacy page on the site states all of this in plain words.
 
 ## Known limits
