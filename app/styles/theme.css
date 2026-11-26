@@ -306,6 +306,8 @@ img, video { display: block; max-width: 100%; }
 .results h3 { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; }
 .results dl { margin-top: 10px; }
 .results dl div { display: flex; justify-content: space-between; gap: 1rem; padding: 12px 0; border-top: 1px solid var(--line); font-size: 0.9375rem; }
+.results dd { text-align: right; }
+.results p { margin-top: 12px; font-size: 0.8125rem; line-height: 1.45; color: var(--text-2); }
 .results dd { color: var(--text-2); }
 
 .end { text-align: center; padding: clamp(7rem, 14vw, 11rem) var(--margin) clamp(4rem, 8vw, 6rem); }

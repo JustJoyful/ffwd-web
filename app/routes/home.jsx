@@ -535,31 +535,38 @@ export default function Home() {
                   shown to you instead of hidden.
                 </p>
                 <p>
-                  I am still testing it. The final results are not in, and this
-                  page will not quote a number until they are.
+                  The numbers on the right come from one final test run on 900
+                  tasks the model had never seen. Those tasks were generated,
+                  not written by real people, so how well it does on your
+                  requests is still unknown. This is an early preview, and I am
+                  still testing it.
                 </p>
               </div>
             </div>
             <div className="results rv">
-              <h3>Results after the final test run</h3>
+              <h3>Results on 900 held-out test tasks</h3>
               <dl>
                 <div>
                   <dt>Regex baseline</dt>
-                  <dd>Not run yet</dd>
+                  <dd>59.4% (535 of 900)</dd>
                 </div>
                 <div>
                   <dt>Base model</dt>
-                  <dd>Not run yet</dd>
+                  <dd>0% (0 of 900)</dd>
                 </div>
                 <div>
                   <dt>ffwd</dt>
-                  <dd>Not run yet</dd>
+                  <dd>96.3% (867 of 900), 95.0% in the browser</dd>
                 </div>
                 <div>
                   <dt>Frontier model</dt>
-                  <dd>Not run yet</dd>
+                  <dd>96.2% (866 of 900)</dd>
                 </div>
               </dl>
+              <p>
+                A task counts only if the result passes the automatic check. The
+                tasks are generated, not real requests.
+              </p>
             </div>
           </div>
         </section>
