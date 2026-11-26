@@ -151,3 +151,23 @@ export const UNSUPPORTED_SCRIPT = [
       "I can't add subtitles yet. The nearest thing I can do is cut the clip so you can add them elsewhere.",
   }),
 ];
+// Pictures (an image sequence): one PNG per second, saved as ONE zip. The clip is 4 s long, so pictures at 0, 1, 2, 3 s.
+CHORES.frames = {
+  recipe: "e2e_sample",
+  file: { name: "sample.mp4", type: "video/mp4" },
+  ask: "Save a picture every second",
+  chips: [
+    ["Pictures", "one every 1 s"],
+    ["Format", "PNG"],
+  ],
+  runs: 1,
+  script: [
+    spec(
+      { frames: { interval_s: 1, format: "png" } },
+      { family: "F7", kind: "image_sequence" },
+    ),
+    run("-i", "{in:clip}", "-vf", "fps=1", "{out:out1}"),
+  ],
+  download: "sample-ffwd-pictures.zip",
+  flags: ["-vf", "fps=1"],
+};

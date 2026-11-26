@@ -2,6 +2,7 @@
 // file plumbing the page needs (write a chosen video in, read a result out). Nothing here knows about the model.
 import { BrowserExecutor } from "./executor/browser-executor.js";
 import { FfmpegSession } from "./executor/ffmpeg-session.js";
+import { zipBlob } from "../lib/zip.js";
 import { BrowserMeasure } from "./measure/browser-measure.js";
 import { parseFfmpegProbe } from "./measure/probe-log.js";
 
@@ -22,7 +23,7 @@ const safeName = (name) =>
  *   writeInput(name: string, bytes: Uint8Array): Promise<string>,
  *   probeFile(file: { name: string, arrayBuffer(): Promise<ArrayBuffer> }): Promise<{ id: string, probe: object, handle: string }>,
  *   adopt(path: string): Promise<string>,
- *   readOutput(handle: string, type?: string): Promise<Blob>,
+ *   readOutput(handle: string, type?: string, opts?: { directory?: boolean }): Promise<Blob>, // a folder of pictures comes back as one zip
  *   dispose(): void,
  * }}
  */
@@ -74,8 +75,25 @@ export function createBrowserRuntime({ coreBase, timeoutMs } = {}) {
       sizes.set(path, (await session.read(path)).byteLength);
       return path;
     },
-    async readOutput(handle, type = "application/octet-stream") {
-      return new Blob([await session.read(handle)], { type });
+    /**
+     * The output as a Blob. For an image sequence (`directory: true`) the handle is a folder of numbered pictures, which
+     * come back as ONE zip (the browser cannot save a folder, and many separate downloads get blocked).
+     */
+    async readOutput(
+      handle,
+      type = "application/octet-stream",
+      { directory = false } = {},
+    ) {
+      if (!directory) return new Blob([await session.read(handle)], { type });
+      const names = (await session.list(handle))
+        .filter((e) => !e.isDir && !e.name.startsWith("."))
+        .map((e) => e.name)
+        .sort();
+      if (!names.length) throw new Error("no pictures were written");
+      const files = [];
+      for (const name of names)
+        files.push({ name, data: await session.read(`${handle}/${name}`) });
+      return zipBlob(files);
     },
     dispose: () => session.dispose(),
   };

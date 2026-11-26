@@ -83,7 +83,7 @@ describe("the headline on done", () => {
       screen.getByText(/Every check passed\. Getting the file ready/),
     ).toBeTruthy();
   });
-  test("an output that cannot be read as a file (an image sequence) is never Done", async () => {
+  test("an output that cannot be read as a file is never Done", async () => {
     show(doneState({ out1: "run1/frames" }), async () => {
       throw new Error("is a directory");
     });
@@ -98,6 +98,29 @@ describe("the headline on done", () => {
       true,
     );
   });
+  test("a pictures result (an image sequence) is read as one zip and offered as a download", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    const spec = structuredClone(SPEC_2MB);
+    spec.outputs[0] = {
+      id: "out1",
+      kind: "image_sequence",
+      frames: { format: "png" },
+    };
+    const read = vi.fn(
+      async () => new Blob(["zip"], { type: "application/zip" }),
+    );
+    show(doneState({ out1: "out/1/out1" }, spec), read);
+    await flush();
+    // the folder handle is read as a directory, and the type is zip
+    expect(read).toHaveBeenCalledWith("out/1/out1", "application/zip", {
+      directory: true,
+    });
+    expect(screen.getByText("Done, every check passed")).toBeTruthy();
+    const b = screen.getByRole("button", { name: "Download pictures (.zip)" });
+    expect(b.disabled).toBe(false);
+    expect(screen.getByText(/-ffwd-pictures\.zip/)).toBeTruthy();
+  });
   test("an output id other than out1 still finds its file", async () => {
     URL.createObjectURL = vi.fn(() => "blob:x");
     URL.revokeObjectURL = vi.fn();
@@ -106,7 +129,9 @@ describe("the headline on done", () => {
     const read = vi.fn(async () => new Blob(["x"]));
     show(doneState({ result: "run1/result.mp4" }, spec), read);
     await flush();
-    expect(read).toHaveBeenCalledWith("run1/result.mp4", expect.anything());
+    expect(read).toHaveBeenCalledWith("run1/result.mp4", expect.anything(), {
+      directory: false,
+    });
     expect(screen.getByText("Done, every check passed")).toBeTruthy();
   });
   test("no output handle at all is never Done", async () => {

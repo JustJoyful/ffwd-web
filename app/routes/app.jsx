@@ -224,13 +224,23 @@ export default function App() {
       ? (passing?.outputs?.[outId] ?? null)
       : (unchecked?.outputs?.[outId] ?? null);
   const container = state.spec?.outputs?.[0]?.container || "mp4";
-  const outName = `${stem(file?.name ?? "video")}-ffwd${unchecked ? "-unchecked" : ""}.${container}`;
+  // A pictures result (an image sequence) is a folder of frames: it is saved as ONE zip, named for what it holds.
+  const isFrames = state.spec?.outputs?.[0]?.kind === "image_sequence";
+  const outName = isFrames
+    ? `${stem(file?.name ?? "video")}-ffwd${unchecked ? "-unchecked" : ""}-pictures.zip`
+    : `${stem(file?.name ?? "video")}-ffwd${unchecked ? "-unchecked" : ""}.${container}`;
   useEffect(() => {
     if (!outHandle || !store.runtime.readOutput) return;
     let stale = false;
     let url;
     store.runtime
-      .readOutput(outHandle, MIME[container] ?? "application/octet-stream")
+      .readOutput(
+        outHandle,
+        isFrames
+          ? "application/zip"
+          : (MIME[container] ?? "application/octet-stream"),
+        { directory: isFrames },
+      )
       .then((blob) => {
         if (stale) return;
         url = URL.createObjectURL(blob);
@@ -243,7 +253,7 @@ export default function App() {
       stale = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [outHandle, container, store]);
+  }, [outHandle, container, isFrames, store]);
   const result = made?.handle === outHandle ? made : null;
   // Success is only claimed with a file the person can get (review S10).
   const fileState = !outHandle
@@ -612,6 +622,9 @@ export default function App() {
                         key={outHandle}
                         blob={result?.blob ?? null}
                         name={outName}
+                        label={
+                          isFrames ? "Download pictures (.zip)" : undefined
+                        }
                       />
                       <small>
                         {fileState === "ready"
@@ -644,7 +657,9 @@ export default function App() {
             <div className="stage">
               <Viewer
                 originalUrl={unreadable ? null : originalUrl}
-                resultUrl={name === "done" ? (result?.url ?? null) : null}
+                resultUrl={
+                  name === "done" && !isFrames ? (result?.url ?? null) : null
+                }
                 name={file?.name ?? ""}
                 audioOnly={state.spec?.outputs?.[0]?.kind === "audio"}
               />

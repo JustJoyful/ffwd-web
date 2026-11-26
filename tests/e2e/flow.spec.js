@@ -3,6 +3,7 @@
 // Chromium); everything else is real: React, the agent machine, ffmpeg.wasm and the checker. Fixtures are made with
 // FFmpeg lavfi in the engine harness page; no corpus clip is used.
 import { expect, test } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { APP, dropClip, makeClip, openApp } from "./app-driver.js";
 import { CHORES, UNSUPPORTED_SCRIPT } from "./scripts.js";
@@ -310,5 +311,43 @@ test("a drop while a job is running changes nothing and says why", async ({
   await expect(page.getByText("Done, every check passed")).toBeVisible({
     timeout: 180_000,
   });
+  await context.close();
+});
+
+test("pictures: the frames of a clip are saved as one zip that unzips to real PNGs", async ({
+  browser,
+}, testInfo) => {
+  const chore = CHORES.frames;
+  const b64 = await makeClip(browser, chore.recipe);
+  const { context, page } = await openApp(browser, chore.script, {});
+  await dropClip(page, chore.file, b64);
+  const field = page.getByLabel("What should happen to your video?");
+  await field.fill(chore.ask);
+  await field.press("Enter");
+  await page.getByRole("button", { name: "Run it" }).click();
+  // Done only with a file the person can get: the zip of the pictures
+  await expect(page.getByText("Done, every check passed")).toBeVisible({
+    timeout: 180_000,
+  });
+  const button = page.getByRole("button", {
+    name: "Download pictures (.zip)",
+  });
+  await expect(button).toBeEnabled();
+  const downloading = page.waitForEvent("download");
+  await button.click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toBe(chore.download);
+  const path = testInfo.outputPath(chore.download);
+  await download.saveAs(path);
+  // checked with the system's own unzip, not our reader: the archive is sound and holds 4 PNGs
+  expect(execFileSync("unzip", ["-tq", path], { encoding: "utf8" })).toMatch(
+    /No errors detected/,
+  );
+  const names = execFileSync("unzip", ["-Z1", path], { encoding: "utf8" })
+    .trim()
+    .split("\n");
+  expect(names).toEqual(["0001.png", "0002.png", "0003.png", "0004.png"]);
+  const first = execFileSync("unzip", ["-p", path, "0001.png"]);
+  expect([...first.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   await context.close();
 });
