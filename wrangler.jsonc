@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers static assets: `npx wrangler deploy` uploads build/client (the prerendered site) and serves it.
+  // _headers (COOP/COEP, the CSP) and the 404 page in that folder are honoured. The name must equal the Worker's name in
+  // the Cloudflare dashboard (Workers & Pages, the project's Settings).
+  "name": "ffwd-web",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./build/client",
+    "not_found_handling": "404-page"
+  }
+}
