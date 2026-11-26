@@ -6,11 +6,13 @@
 # client-side navigation from another page into /app would keep the old document's (non-isolated) headers.
 # credentialless, not require-corp: a cross-origin no-cors load is sent without cookies instead of needing a CORP
 # header, so a cross-origin ranged fetch of the model works (verified, see below).
+# no-referrer: the model host (Hugging Face) answers 404 to any request referred from a workers.dev address, and a page
+# address has no business reaching the model or core hosts anyway.
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentialless
   X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
+  Referrer-Policy: no-referrer
 
 # Fingerprinted build output (content hash in the file name): cache for a year.
 /assets/*

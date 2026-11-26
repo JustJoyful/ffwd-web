@@ -4,5 +4,5 @@ export const isolation = {
   "Cross-Origin-Embedder-Policy": "credentialless",
   // not isolation, but the dev and preview servers should send what _headers sends (review N5)
   "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Referrer-Policy": "no-referrer",
 };

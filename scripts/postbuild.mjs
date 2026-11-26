@@ -31,7 +31,7 @@ const csp = buildCsp({
   coreBase: env.VITE_FFMPEG_CORE_BASE || null,
 });
 const headers = readFileSync(`${OUT}/_headers`, "utf8");
-const marker = "  Referrer-Policy: strict-origin-when-cross-origin\n";
+const marker = "  Referrer-Policy: no-referrer\n";
 if (!headers.includes(marker))
   throw new Error(
     "postbuild: _headers has no Referrer-Policy line to put the CSP after",

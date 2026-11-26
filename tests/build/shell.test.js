@@ -58,7 +58,7 @@ test('_headers "/*" block equals isolation', () => {
   const h = parseHeaders(readFileSync("public/_headers", "utf8"));
   expect(h["/*"]).toMatchObject(isolation);
   expect(h["/*"]["X-Content-Type-Options"]).toBe("nosniff");
-  expect(h["/*"]["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
+  expect(h["/*"]["Referrer-Policy"]).toBe("no-referrer");
 });
 
 test("cache headers: /assets/* immutable, /media/* one day", () => {
