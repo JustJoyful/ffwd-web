@@ -39,6 +39,7 @@ export async function openApp(
     dnt = false, // the browser sends Do Not Track
     beforeGoto = null, // async (context) => void, e.g. to stub a host before the page can reach it
     analytics = null, // { key, host }: gives the page a fake PostHog key (the e2e server reads it, see app/config.js)
+    feedbackUrl = null, // https URL: switches opt-in feedback on (the e2e server reads it, see app/lib/feedback-state.js)
   } = {},
 ) {
   const context = await browser.newContext({ reducedMotion, viewport });
@@ -48,14 +49,15 @@ export async function openApp(
   page.on("pageerror", (e) => seen.errors.push(e.message));
   page.on("request", (r) => seen.requests.push(r.url()));
   await page.addInitScript(
-    ([script, analytics, dnt]) => {
+    ([script, analytics, dnt, feedbackUrl]) => {
       globalThis.__ffwdScript = script;
+      if (feedbackUrl) globalThis.__ffwdFeedbackUrl = feedbackUrl;
       if (dnt) Object.defineProperty(navigator, "doNotTrack", { value: "1" });
       if (analytics) globalThis.__ffwdAnalytics = analytics;
       // Playwright cannot drive the browser's native save dialog, so the download goes through the <a download> path.
       delete globalThis.showSaveFilePicker;
     },
-    [script, analytics, dnt],
+    [script, analytics, dnt, feedbackUrl],
   );
   await beforeGoto?.(context);
   await page.goto(`${APP}${path}`);
