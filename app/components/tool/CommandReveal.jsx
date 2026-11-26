@@ -6,7 +6,7 @@ import { flagsForChip, quoteArg } from "../../tool/chips.js";
  * implement it. The text is for reading and copying only; ffwd runs the argument list, never this string.
  * @param {{ args: string[], chips: Array<[string, string, 1?]> }} props `args` are display arguments (file names filled in)
  */
-export default function CommandReveal({ args, chips }) {
+export default function CommandReveal({ args, chips, aside }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [lit, setLit] = useState(null);
@@ -28,15 +28,18 @@ export default function CommandReveal({ args, chips }) {
       className="reveal-cmd"
       onKeyDown={(e) => e.key === "Escape" && open && setOpen(false)}
     >
-      <button
-        type="button"
-        className="cmdlink"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((o) => !o)}
-      >
-        {open ? "Hide the FFmpeg command" : "Show the FFmpeg command"}
-      </button>
+      <div className="reveal-cmd__row">
+        <button
+          type="button"
+          className="cmdlink"
+          aria-expanded={open}
+          aria-controls={id}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {open ? "Hide the FFmpeg command" : "Show the FFmpeg command"}
+        </button>
+        {aside}
+      </div>
       {open && (
         <div id={id}>
           <ul

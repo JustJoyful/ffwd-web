@@ -126,4 +126,24 @@ describe("PlanCard", () => {
       document.activeElement,
     );
   });
+  test("'Not what I meant' only exists when onFeedback is given, and calls it", () => {
+    const props = {
+      chips: [["Size", "under 2 MB", 1]],
+      state: "proposed",
+      onRun: () => {},
+      onChange: () => {},
+    };
+    const { rerender } = render(<PlanCard {...props} />);
+    expect(
+      screen.queryByRole("button", { name: "Not what I meant" }),
+    ).toBeNull();
+    const f = vi.fn();
+    rerender(<PlanCard {...props} onFeedback={f} />);
+    fireEvent.click(screen.getByRole("button", { name: "Not what I meant" }));
+    expect(f).toHaveBeenCalledTimes(1);
+    rerender(<PlanCard {...props} onFeedback={f} state="confirmed" />);
+    expect(
+      screen.queryByRole("button", { name: "Not what I meant" }),
+    ).toBeNull();
+  });
 });

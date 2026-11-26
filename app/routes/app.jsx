@@ -28,6 +28,7 @@ import RequestField from "../components/tool/RequestField.jsx";
 import RunLog from "../components/tool/RunLog.jsx";
 import RunProgress from "../components/tool/RunProgress.jsx";
 import StatusDot from "../components/tool/StatusDot.jsx";
+import { useFeedbackAvailable, feedbackUrl } from "../lib/feedback-state.js";
 import Unsupported from "../components/tool/Unsupported.jsx";
 import Viewer from "../components/tool/Viewer.jsx";
 import { MACHINE_REASON, initialModelState } from "../model/contract.js";
@@ -115,15 +116,11 @@ function Step({ n, title, mod, children }) {
   );
 }
 
-// Opt-in feedback (separate from analytics): lazy, so none of it is in the first-load bundle, and it renders nothing at
-// all unless the build has a feedback URL.
+// Opt-in feedback (separate from analytics): the panel is lazy, so none of it is in the first-load bundle; the quiet entry
+// links are tiny and are shown only when the build has a feedback URL and nothing hid them (lib/feedback-state.js).
+// Nothing opens by itself: a link is a button, the panel mounts only after the person clicks it.
 const FeedbackPrompt = lazy(
   () => import("../components/tool/FeedbackPrompt.jsx"),
-);
-const FeedbackButton = lazy(() =>
-  import("../components/tool/FeedbackPrompt.jsx").then((m) => ({
-    default: m.FeedbackButton,
-  })),
 );
 /** The closed failure categories the feedback form allows, from why the job ended. */
 const feedbackFailure = (reason, unchecked) =>
@@ -155,7 +152,7 @@ export default function App() {
   const [dropNotice, setDropNotice] = useState(null);
   const [report, setReport] = useState(null);
   const [made, setMade] = useState(null);
-  const [fb, setFb] = useState(null); // "plan_wrong" once the person says the plan is wrong
+  const [fb, setFb] = useState(null); // { kind, jobKey } of the feedback panel the person opened
   const field = useRef(null);
 
   const name = state.name;
@@ -163,6 +160,9 @@ export default function App() {
   const unsupportedDevice = name === "unsupportedDevice";
   const waiting = modelBlocks(model);
   const canPick = FILE_STATES.includes(name);
+  // one job = one request at one run count; a send hides the entry links for it, the next job shows them again
+  const jobKey = `${state.request ?? ""}:${state.history.length}`;
+  const fbOn = useFeedbackAvailable(jobKey) && !waiting;
 
   const onFile = useCallback(
     (f) => {
@@ -296,6 +296,37 @@ export default function App() {
         : WORKING.includes(name)
           ? "busy"
           : "ready";
+  // feedback: the panel (lazy) for an opened kind, and the one quiet line that opens it. Neither shows unless asked for.
+  const fbOpen = (kind) => fb?.kind === kind && fb.jobKey === jobKey;
+  const fbPanel = (kind, spec, failureCategory) =>
+    fbOpen(kind) &&
+    feedbackUrl() && (
+      <Suspense fallback={null}>
+        <FeedbackPrompt
+          key={jobKey}
+          jobKey={jobKey}
+          kind={kind}
+          requestText={state.request ?? request}
+          spec={spec}
+          failureCategory={failureCategory}
+          fileName={file?.name}
+          modelVersion={store.model?.getConfig?.()?.version}
+        />
+      </Suspense>
+    );
+  const fbLine = (kind) =>
+    fbOn &&
+    !fbOpen(kind) && (
+      <p className="fb-line">
+        <button
+          type="button"
+          className="cmdlink"
+          onClick={() => setFb({ kind, jobKey })}
+        >
+          Send this request (not your video) to help improve ffwd
+        </button>
+      </p>
+    );
   const again = () => {
     setFb(null);
     dispatch({ type: "newRequest" });
@@ -441,19 +472,9 @@ export default function App() {
                 {name === "unsupported" && (
                   <Unsupported reason={state.reason} onNewRequest={again} />
                 )}
-                {name === "unsupported" && (
-                  <Suspense fallback={null}>
-                    <FeedbackPrompt
-                      key={state.request}
-                      kind="failed_job"
-                      requestText={state.request ?? request}
-                      spec={null}
-                      failureCategory="no_plan"
-                      fileName={file?.name}
-                      modelVersion={store.model?.getConfig?.()?.version}
-                    />
-                  </Suspense>
-                )}
+                {name === "unsupported" && fbLine("failed_job")}
+                {name === "unsupported" &&
+                  fbPanel("failed_job", null, "no_plan")}
                 {showPlan && (
                   <PlanCard
                     key={state.request}
@@ -471,25 +492,18 @@ export default function App() {
                     }
                     onRun={() => dispatch({ type: "confirmed" })}
                     onChange={() => field.current?.focus()}
+                    onFeedback={
+                      fbOn &&
+                      name === "awaitingConfirm" &&
+                      !fbOpen("plan_wrong")
+                        ? () => setFb({ kind: "plan_wrong", jobKey })
+                        : undefined
+                    }
                   />
                 )}
-                {showPlan && (
-                  <Suspense fallback={null}>
-                    {fb === "plan_wrong" ? (
-                      <FeedbackPrompt
-                        kind="plan_wrong"
-                        requestText={state.request ?? request}
-                        spec={state.spec}
-                        failureCategory="plan_wrong"
-                        fileName={file?.name}
-                        modelVersion={store.model?.getConfig?.()?.version}
-                        onDone={(o) => o === "declined" && setFb(null)}
-                      />
-                    ) : (
-                      <FeedbackButton onClick={() => setFb("plan_wrong")} />
-                    )}
-                  </Suspense>
-                )}
+                {showPlan &&
+                  name === "awaitingConfirm" &&
+                  fbPanel("plan_wrong", state.spec, "plan_wrong")}
                 {!showPlan &&
                   !["planning", "askingUser", "unsupported"].includes(name) && (
                     <p className="step__hint">{IDLE.plan}</p>
@@ -576,20 +590,14 @@ export default function App() {
                     </div>
                   )}
                   {name === "failed" && state.reason !== "aborted" && (
-                    <Suspense fallback={null}>
-                      <FeedbackPrompt
-                        key={`${state.request}:${state.history.length}`}
-                        kind="failed_job"
-                        requestText={state.request ?? request}
-                        spec={state.spec}
-                        failureCategory={feedbackFailure(
-                          state.reason,
-                          Boolean(unchecked),
-                        )}
-                        fileName={file?.name}
-                        modelVersion={store.model?.getConfig?.()?.version}
-                      />
-                    </Suspense>
+                    <>
+                      {fbLine("failed_job")}
+                      {fbPanel(
+                        "failed_job",
+                        state.spec,
+                        feedbackFailure(state.reason, Boolean(unchecked)),
+                      )}
+                    </>
                   )}
                 </RunLog>
               </Step>
@@ -641,7 +649,22 @@ export default function App() {
                         { [outId]: outName },
                       )}
                       chips={chips}
+                      aside={
+                        fbOn &&
+                        !fbOpen("result_wrong") && (
+                          <button
+                            type="button"
+                            className="cmdlink"
+                            onClick={() =>
+                              setFb({ kind: "result_wrong", jobKey })
+                            }
+                          >
+                            Not what you asked?
+                          </button>
+                        )
+                      }
                     />
+                    {fbPanel("result_wrong", state.spec, "other")}
                     <button
                       type="button"
                       className="btn btn--sm btn--ghost again"

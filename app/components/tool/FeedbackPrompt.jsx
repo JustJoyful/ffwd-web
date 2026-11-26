@@ -1,34 +1,51 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { buildFeedback, sendFeedback } from "../../lib/feedback.js";
 import {
-  buildFeedback,
   feedbackUrl,
-  sendFeedback,
-} from "../../lib/feedback.js";
+  hideFeedbackForSession,
+  markFeedbackSent,
+} from "../../lib/feedback-state.js";
+import { MAX_NOTE } from "../../lib/feedback-schema.js";
+
+export const CONSENT =
+  "Send this request (not your video) anonymously. Your request text (not your video) may be used to improve ffwd's model.";
 
 /**
- * Opt-in feedback (separate from analytics, which it never touches). Renders nothing when the build has no
- * VITE_FEEDBACK_URL. Nothing is built into a request until "Send" is pressed; the exact payload is shown first.
- * `onDone(outcome)` gets "declined" | "sent" | "failed"; the panel keeps showing its last message until the parent
- * unmounts it.
- * @param {{ kind: "failed_job" | "plan_wrong", requestText: string, spec?: object | null, failureCategory?: string,
- *   fileName?: string, modelVersion?: string, onDone?: (outcome: string) => void }} props
+ * Opt-in feedback (separate from analytics, which it never touches). It is mounted only after a person clicked one of
+ * the quiet entry links in the tool (app.jsx), and takes focus then. Renders nothing when the build has no
+ * VITE_FEEDBACK_URL. Nothing is built into a request until "Send" is pressed; the exact payload (with the optional
+ * note) is shown first. "No thanks" hides every entry point for the session; a send hides them for this job (`jobKey`).
+ * @param {{ kind: "failed_job" | "plan_wrong" | "result_wrong", requestText: string, spec?: object | null,
+ *   failureCategory?: string, fileName?: string, modelVersion?: string, jobKey?: string,
+ *   onDone?: (outcome: "sent" | "failed" | "declined") => void }} props
  */
-export default function FeedbackPrompt({ onDone, ...input }) {
+export default function FeedbackPrompt({ onDone, jobKey, ...input }) {
   const [state, setState] = useState("ask"); // ask | sending | sent | failed | declined
+  const [note, setNote] = useState("");
+  const heading = useRef(null);
   const status = useRef(null);
-  // the buttons disappear when the answer arrives: put focus on the message so keyboard and screen-reader users land on it
+  const noteId = useId();
+  const hintId = useId();
+  useEffect(() => {
+    heading.current?.focus(); // the person just opened the panel: keyboard and screen-reader users land on it
+  }, []);
+  // the buttons disappear when the answer arrives: put focus on the message
   useEffect(() => {
     if (state === "sent" || state === "failed") status.current?.focus();
   }, [state]);
   if (!feedbackUrl() || state === "declined") return null;
-  const payload = buildFeedback(input);
-  const finish = (s) => {
-    setState(s);
-    onDone?.(s === "sent" ? "sent" : s === "failed" ? "failed" : "declined");
-  };
+  const payload = buildFeedback({ ...input, note });
   const send = async () => {
     setState("sending");
-    finish((await sendFeedback(payload)).ok ? "sent" : "failed");
+    const ok = (await sendFeedback(payload)).ok;
+    setState(ok ? "sent" : "failed");
+    if (ok) markFeedbackSent(jobKey);
+    onDone?.(ok ? "sent" : "failed");
+  };
+  const decline = () => {
+    setState("declined");
+    hideFeedbackForSession();
+    onDone?.("declined");
   };
   if (state === "sent" || state === "failed")
     return (
@@ -48,18 +65,30 @@ export default function FeedbackPrompt({ onDone, ...input }) {
     );
   return (
     <div
-      className="notice"
+      className="notice fb"
       role="group"
       aria-labelledby="fb-t"
       data-feedback="ask"
     >
-      <p className="notice__t" id="fb-t">
+      <p className="notice__t" id="fb-t" tabIndex={-1} ref={heading}>
         Help improve ffwd?
       </p>
-      <p>
-        Send this request text (not your video) anonymously to help improve
-        ffwd?
-      </p>
+      <p>{CONSENT}</p>
+      <label className="fb__note" htmlFor={noteId}>
+        What did you expect? (optional)
+        <input
+          id={noteId}
+          type="text"
+          className="ask ask--field"
+          maxLength={MAX_NOTE}
+          value={note}
+          aria-describedby={hintId}
+          autoComplete="off"
+          onChange={(e) => setNote(e.target.value)}
+          disabled={state === "sending"}
+        />
+      </label>
+      <small id={hintId}>Don't include names or personal details.</small>
       <details>
         <summary>What gets sent</summary>
         <pre className="notice__detail" data-feedback-payload>
@@ -78,22 +107,12 @@ export default function FeedbackPrompt({ onDone, ...input }) {
         <button
           type="button"
           className="btn"
-          onClick={() => finish("declined")}
+          onClick={decline}
           disabled={state === "sending"}
         >
           No thanks
         </button>
       </div>
     </div>
-  );
-}
-
-/** The "This plan is wrong" trigger: renders nothing when feedback is off. The parent decides what onClick opens. */
-export function FeedbackButton({ onClick, children = "This plan is wrong" }) {
-  if (!feedbackUrl()) return null;
-  return (
-    <button type="button" className="btn" onClick={onClick}>
-      {children}
-    </button>
   );
 }

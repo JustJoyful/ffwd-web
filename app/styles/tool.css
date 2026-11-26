@@ -490,3 +490,30 @@
 .ask--field:focus-visible {
   border-radius: 10px;
 }
+
+/* opt-in feedback: the panel only adds content below its entry link; the links reuse .cmdlink */
+.fb__note {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+.fb small {
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+.reveal-cmd__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 16px;
+}
+.fb-line {
+  margin-top: 8px;
+}
+.fb-line .cmdlink {
+  margin-top: 0;
+}
+.plan__actions .cmdlink {
+  margin-top: 0;
+  align-self: center;
+}

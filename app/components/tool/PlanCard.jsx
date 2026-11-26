@@ -12,7 +12,7 @@ export const NO_CHANGE_TEXT =
  * request-coverage.js), there is no plain Run button: the primary action is "Reword my request"
  * and "Run anyway" is secondary and needs a second, inline click ("Run anyway, change nothing?" then "Yes, run it" or
  * "Cancel"); focus follows each step. `strictness` goes in a closed native <details>; no lines, no panel.
- * @param {{ chips: Array<[string, string, 1?]>, strictness?: string[], noChange?: boolean, gaps?: string[], state: "proposed" | "edited" | "confirmed", onRun(): void, onChange(): void, onReword?(): void }} props
+ * @param {{ chips: Array<[string, string, 1?]>, strictness?: string[], noChange?: boolean, gaps?: string[], state: "proposed" | "edited" | "confirmed", onRun(): void, onChange(): void, onReword?(): void, onFeedback?(): void }} props
  */
 export default function PlanCard({
   chips,
@@ -23,6 +23,7 @@ export default function PlanCard({
   onRun,
   onChange,
   onReword,
+  onFeedback,
 }) {
   const primary = useRef(null);
   const sure = useRef(null);
@@ -44,6 +45,12 @@ export default function PlanCard({
     ["Keeps", chips.filter((c) => !c[2])],
   ];
   let i = 0;
+  // opt-in feedback: a quiet link in the action row, only when the page offers feedback (never opens anything by itself)
+  const notMine = onFeedback && (
+    <button type="button" className="cmdlink" onClick={onFeedback}>
+      Not what I meant
+    </button>
+  );
   return (
     <div
       className="plan"
@@ -107,6 +114,7 @@ export default function PlanCard({
           >
             Change
           </button>
+          {notMine}
         </div>
       )}
       {state !== "confirmed" && warn && (
@@ -160,6 +168,7 @@ export default function PlanCard({
               </button>
             </span>
           )}
+          {notMine}
         </div>
       )}
     </div>
