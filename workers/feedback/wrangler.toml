@@ -5,8 +5,25 @@ compatibility_date = "2026-11-01"
 [vars]
 # Comma-separated origins allowed to post (the site's origin, no trailing slash). PLACEHOLDER: replace before deploying.
 ALLOWED_ORIGIN = "https://ffwd.example"
+# Most rows accepted per UTC day (extra posts get 429), and how many days a row is kept before the daily cleanup removes it.
+DAILY_CAP = "500"
+RETENTION_DAYS = "90"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "ffwd-feedback"
 database_id = "PLACEHOLDER-run-wrangler-d1-create-and-paste-the-id"
+
+# Per-client rate limit with the Workers Rate Limiting binding (the account has no zone, so WAF rules are not available).
+# The Worker calls env.LIMITER.limit({ key: CF-Connecting-IP }): 5 posts per 60 s per address, then 429. `period` can only
+# be 10 or 60. `namespace_id` is any number you pick, as a string, unique in the account.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 5
+  period = 60
+
+# Daily cleanup at 03:17 UTC: the Worker's `scheduled` handler removes rows older than RETENTION_DAYS.
+[triggers]
+crons = ["17 3 * * *"]
