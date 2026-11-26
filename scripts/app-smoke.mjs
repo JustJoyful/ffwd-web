@@ -45,6 +45,8 @@ const SHOTS = arg("shots", "all");
 // no-change warning, a failure, "Download anyway") instead of requiring the happy path; used to look at new behaviour.
 const REQUEST = arg("request", "Cut the first 2 seconds off");
 const PROBE = process.argv.includes("--probe");
+// --feedback: after the plan, use the plan card's "Not what I meant" link to send a test message (needs a build with VITE_FEEDBACK_URL)
+const FEEDBACK = process.argv.includes("--feedback");
 if (!["nvidia", "intel", "cpu"].includes(VARIANT))
   throw new Error(`--variant must be nvidia, intel or cpu, not ${VARIANT}`);
 if (VARIANT === "intel" && !VK_ICD)
@@ -528,6 +530,23 @@ await step(
   },
   true,
 );
+if (FEEDBACK)
+  await step("send feedback from the plan card", async () => {
+    const link = page.getByRole("button", { name: "Not what I meant" });
+    await expect(link).toBeVisible({ timeout: 20000 });
+    // nothing opens by itself
+    await expect(page.getByText("Help improve ffwd?")).toHaveCount(0);
+    await link.click();
+    await expect(page.getByText("Help improve ffwd?")).toBeVisible();
+    await page
+      .getByLabel(/What did you expect/)
+      .fill("[live ui test] delete me");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.getByText("Thanks. Sent.")).toBeVisible({
+      timeout: 30000,
+    });
+    return { sent: true };
+  });
 await step(
   "run it",
   async () => {
