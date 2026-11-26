@@ -209,7 +209,7 @@ export function nativeMeasure() {
         psnr_db: p === "inf" ? 100 : Number(p),
       };
     },
-    async thumbnail(path, size) {
+    async thumbnail(path, size, atSeconds = 0) {
       const raw = spawnSync(
         FFMPEG,
         [
@@ -217,6 +217,7 @@ export function nativeMeasure() {
           "-nostdin",
           "-v",
           "error",
+          ...(atSeconds > 0 ? ["-ss", String(atSeconds)] : []),
           "-i",
           path,
           "-frames:v",

@@ -5,8 +5,11 @@
 // Method: first frame of each file -> 32x32 grey thumbnail (the Measure makes it); turn the input's thumbnail by
 // 0/90/180/270 degrees clockwise and pick the candidate closest (mean absolute difference) to the output's.
 // Ambiguous or unreadable -> null (the field then fails: fail closed).
-// shortcut (same as Python): first frame only, so a heavily trimmed output whose first frame differs from the
-// input's can mis-measure; the F5 rotation tasks keep the whole clip.
+// The output's first frame is compared with the input's frame at the time the output STARTS at (`inputAtSeconds`,
+// the spec's time.start_s, else 0). Comparing it with the input's first frame failed closed on any trim that cut away a
+// scene change: the two frames were different shots, so no rotation could be told (found 2026-11-26).
+// Not in the Python twin (training/env/orientation.py still uses the first frame): the checker there is frozen.
+// shortcut: only the start time the SPEC names is known; a trim the spec does not mention can still mis-measure.
 import { ORIENTATION_MAX_RATIO, ORIENTATION_MIN_GAP } from "../config.js";
 
 /** Thumbnail edge in pixels (Python: ORIENTATION_THUMB). The Measure is asked for this size. */
@@ -59,12 +62,22 @@ export function netRotationFromThumbs(inp, out) {
 }
 
 /**
- * @param {{ thumbnail(h: unknown, size: number): Promise<number[][] | null> }} measure
+ * @param {{ thumbnail(h: unknown, size: number, atSeconds?: number): Promise<number[][] | null> }} measure
  * @param {unknown} inputHandle
  * @param {unknown} outputHandle
+ * @param {number} [inputAtSeconds] which frame of the input the output's first frame should look like
  */
-export async function netRotationCw(measure, inputHandle, outputHandle) {
-  const a = await measure.thumbnail(inputHandle, ORIENTATION_THUMB);
+export async function netRotationCw(
+  measure,
+  inputHandle,
+  outputHandle,
+  inputAtSeconds = 0,
+) {
+  const a = await measure.thumbnail(
+    inputHandle,
+    ORIENTATION_THUMB,
+    inputAtSeconds,
+  );
   const b = await measure.thumbnail(outputHandle, ORIENTATION_THUMB);
   return a === null || b === null ? null : netRotationFromThumbs(a, b);
 }

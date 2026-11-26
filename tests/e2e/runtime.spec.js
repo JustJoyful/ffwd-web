@@ -188,3 +188,72 @@ test("measure.quality of a clip against itself is perfect, and of a re-encode it
   expect(lossy.ssim).toBeLessThan(1);
   expect(lossy.ssim).toBeGreaterThan(0.5);
 });
+
+test("a trim whose cut-off part holds a scene change still passes the rotation check", async () => {
+  // 2 s of one picture, then 3 s of a different one (a scene change at 2 s). "Cut the first 3 seconds" leaves only the
+  // second picture, so the output's first frame is NOT the input's first frame: comparing those two used to fail closed.
+  const r = await inPage(async (rt, ffwd) => {
+    // the same thread caps as every other fixture: a filter graph that picks its own thread count deadlocks this core
+    const made = await rt.session.exec(
+      [
+        ...["-hide_banner", "-nostdin", "-y"],
+        ...["-filter_threads", "1", "-filter_complex_threads", "1"],
+        ...["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=2"],
+        ...["-f", "lavfi", "-i", "smptebars=size=640x360:rate=25:duration=3"],
+        ...[
+          "-filter_complex",
+          "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+          "-map",
+          "[v]",
+        ],
+        ...["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"],
+        ...["-threads", "4", "scene.mp4"],
+      ],
+      { timeoutMs: 120_000 },
+    );
+    if (made.code !== 0)
+      return { run: { ok: false, log: made.log.slice(-300) } };
+    const handle = await rt.adopt("scene.mp4");
+    rt.executor.setInputs({ clip: handle });
+    const args = [
+      "-i",
+      "{in:clip}",
+      "-ss",
+      "3",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "{out:out1}",
+    ];
+    const run = await rt.executor.run({
+      args,
+      inputs: ["clip"],
+      outputs: ["out1"],
+      specs: [{ id: "out1", kind: "video", container: "mp4" }],
+    });
+    if (!run.ok) return { run };
+    const spec = {
+      kind: "video",
+      container: "mp4",
+      video: { rotation: 0 },
+      time: { start_s: 3 },
+    };
+    const result = await ffwd.check(spec, {
+      output: run.outputs.out1,
+      inputProbe: await rt.measure.probe(handle),
+      inputs: [handle],
+      measure: rt.measure,
+      runArgs: args,
+    });
+    return { run: { ok: true }, result };
+  });
+  expect(r.run.ok, JSON.stringify(r.run)).toBe(true);
+  const rot = r.result.checks.find((c) => c.field === "video.rotation");
+  expect(rot, JSON.stringify(r.result)).toMatchObject({
+    expected: 0,
+    actual: 0,
+    ok: true,
+  });
+  expect(r.result.passed, JSON.stringify(r.result.checks)).toBe(true);
+});

@@ -590,4 +590,44 @@ describe("net rotation from thumbnails (checker v1.2)", () => {
       ok: false,
     });
   });
+
+  // A trim keeps the picture's turn but not its first frame: the output's first frame is the input's frame at the cut.
+  const timed = (thumbs) => {
+    const seen = [];
+    return {
+      seen,
+      measure: {
+        ...fake(),
+        thumbnail: async (h, _size, at = 0) => (seen.push([h, at]), thumbs[h]),
+      },
+    };
+  };
+  test("the input frame is read at the spec's start time, the output's at its start", async () => {
+    const { seen, measure } = timed({ in: pic, out: pic });
+    const r = await run(
+      { video: { rotation: 0 }, time: { start_s: 3 } },
+      measure,
+      { inputs: ["in"] },
+    );
+    expect(seen).toEqual([
+      ["in", 3],
+      ["out", 0],
+    ]);
+    expect(byField(r, "video.rotation")).toMatchObject({ actual: 0, ok: true });
+  });
+  test("without a start time the input's first frame is used, as before", async () => {
+    const { seen, measure } = timed({ in: pic, out: rotateCw(pic, 90) });
+    await run({ video: { rotation: 90 } }, measure, { inputs: ["in"] });
+    expect(seen).toEqual([
+      ["in", 0],
+      ["out", 0],
+    ]);
+  });
+  test("a spec with only an end time still reads the input at 0", async () => {
+    const { seen, measure } = timed({ in: pic, out: pic });
+    await run({ video: { rotation: 0 }, time: { end_s: 2 } }, measure, {
+      inputs: ["in"],
+    });
+    expect(seen[0]).toEqual(["in", 0]);
+  });
 });

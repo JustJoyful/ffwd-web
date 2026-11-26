@@ -31,7 +31,7 @@ import { add, result } from "./result.js";
  * @property {(h: Handle, type: "video" | "audio") => Promise<number | null>} firstPacketPts earliest pts (s) among the first packets
  * @property {(h: Handle) => Promise<number | null>} loudness EBU R128 integrated loudness (LUFS), null when unmeasurable
  * @property {(ref: Handle, cand: Handle, width: number, height: number) => Promise<{ ssim: number, psnr_db: number } | null>} quality
- * @property {(h: Handle, size: number) => Promise<number[][] | null>} thumbnail first frame as a size x size grey matrix
+ * @property {(h: Handle, size: number, atSeconds?: number) => Promise<number[][] | null>} thumbnail the frame at atSeconds (default: the first) as a size x size grey matrix
  */
 
 // shortcut: container is a substring match on the probe's format_name, which cannot tell mp4 from mov
@@ -159,7 +159,12 @@ export async function check(spec, ctx) {
             );
         if ("rotation" in video) {
           const net = inputs?.length
-            ? await netRotationCw(measure, inputs[0], output)
+            ? await netRotationCw(
+                measure,
+                inputs[0],
+                output,
+                isSet(spec.time?.start_s) ? spec.time.start_s : 0,
+              )
             : null;
           measurements.net_rotation_cw = net;
           add(

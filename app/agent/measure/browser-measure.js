@@ -119,10 +119,15 @@ export class BrowserMeasure {
     };
   }
 
-  async thumbnail(h, size) {
+  async thumbnail(h, size, atSeconds = 0) {
     const out = "scratch-thumb.raw";
+    // -y, and the scratch file is removed whether or not this worked: a leftover file from one failed run would make every
+    // later thumbnail fail ("already exists" under -nostdin), and rotation then fails closed for the whole session.
     const r = await this.session.exec([
       ...HEAD,
+      "-y",
+      // the frame at `atSeconds` (0 = the first frame); -ss before -i seeks without decoding what it skips
+      ...(atSeconds > 0 ? ["-ss", String(atSeconds)] : []),
       ...IN(h),
       ...[
         "-frames:v",
@@ -132,9 +137,12 @@ export class BrowserMeasure {
       ],
       ...["-f", "rawvideo", out],
     ]);
-    if (r.code !== 0) return null;
+    if (r.code !== 0) {
+      await this.session.remove(out).catch(() => {});
+      return null;
+    }
     const raw = await this.session.read(out);
-    await this.session.remove(out);
+    await this.session.remove(out).catch(() => {});
     if (raw.length !== size * size) return null;
     return Array.from({ length: size }, (_, y) =>
       Array.from(raw.subarray(y * size, (y + 1) * size)),

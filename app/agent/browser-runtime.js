@@ -52,6 +52,13 @@ export function createBrowserRuntime({ coreBase, timeoutMs } = {}) {
     writeInput,
     /** The machine's `probeFile` dependency: a chosen file becomes the job's input "clip". */
     async probeFile(file) {
+      // A new video starts a fresh core: the worker never gives memory back, so the last video and its outputs would
+      // stay held next to the new one (two large phone videos in a row ran out of memory). The machine drops the old job.
+      if (files) {
+        session.dispose();
+        sizes.clear();
+        measure.probes.clear();
+      }
       const handle = await writeInput(
         file.name,
         new Uint8Array(await file.arrayBuffer()),
