@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { check } from "../../app/agent/checker/index.js";
-import { expectedFrameRange } from "../../app/agent/checker/frames.js";
+import { check, expectedDuration } from "../../app/agent/checker/index.js";
+import {
+  checkFrames,
+  expectedFrameRange,
+} from "../../app/agent/checker/frames.js";
 import {
   netRotationFromThumbs,
   rotateCw,
@@ -332,6 +335,7 @@ describe("quality floor", () => {
       "out",
       1280,
       720,
+      0, // no start time: compared from the first frame
     ]);
     const poor = await run(sized, withQ({ ssim: 0.84, psnr_db: 23 }), {
       inputs: ["in"],
@@ -629,5 +633,55 @@ describe("net rotation from thumbnails (checker v1.2)", () => {
       inputs: ["in"],
     });
     expect(seen[0]).toEqual(["in", 0]);
+  });
+});
+
+describe("a time range in the spec (found 2026-11-26)", () => {
+  test("an end time past the end of the input is the input's end, not a failure", () => {
+    const probe = { duration_s: 20 };
+    expect(expectedDuration({ end_s: 30 }, probe)).toBe(20); // "keep the first 30 seconds" of a 20 s clip
+    expect(expectedDuration({ start_s: 5, end_s: 30 }, probe)).toBe(15);
+    expect(expectedDuration({ end_s: 10 }, probe)).toBe(10); // unchanged inside the clip
+    expect(expectedDuration({ start_s: 4 }, probe)).toBe(16);
+    expect(expectedDuration({}, probe)).toBeNull();
+    expect(expectedDuration({ end_s: 30 }, { duration_s: null })).toBe(30); // unknown length: as asked
+  });
+  test("a quality floor on a trimmed output is measured from the cut, not from the input's first frame", async () => {
+    const m = fake({ q: { ssim: 0.97, psnr_db: 35 } });
+    const r = await run(
+      { quality: { min_ssim: 0.9 }, time: { start_s: 3 } },
+      m,
+      { inputs: ["in"] },
+    );
+    expect(m.calls.find((c) => c[0] === "quality").at(-1)).toBe(3);
+    expect(byField(r, "quality.min_ssim")).toMatchObject({ ok: true });
+  });
+});
+
+describe("frames over a time range", () => {
+  const probe = { duration_s: 60, streams: [{ type: "video", fps: 30 }] };
+  const frames = (n, ext = "png") =>
+    Array.from(
+      { length: n },
+      (_, i) => `${String(i + 1).padStart(4, "0")}.${ext}`,
+    );
+  const check = (spec, n) =>
+    checkFrames(spec, "dir", probe, {}, { listFiles: async () => frames(n) });
+  test("a frame a second between 10 s and 20 s is 10 frames, not 60", async () => {
+    const spec = {
+      kind: "image_sequence",
+      frames: { interval_s: 1, format: "png" },
+      time: { start_s: 10, end_s: 20 },
+    };
+    expect((await check(spec, 10)).passed).toBe(true);
+    expect((await check(spec, 60)).passed).toBe(false); // the whole clip is not what was asked
+  });
+  test("without a time range the whole clip counts, as before", async () => {
+    const spec = {
+      kind: "image_sequence",
+      frames: { interval_s: 1, format: "png" },
+    };
+    expect((await check(spec, 60)).passed).toBe(true);
+    expect((await check(spec, 10)).passed).toBe(false);
   });
 });

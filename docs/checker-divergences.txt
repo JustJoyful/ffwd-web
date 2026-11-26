@@ -1,0 +1,18 @@
+Where the JavaScript checker (app/agent/checker) deliberately differs from the Python one (training/env/checker.py)
+==================================================================================================================
+The Python checker is frozen (the preregistered evaluation used it), so these fixes are JavaScript-only. Each is a case where
+the Python behaviour gives a FALSE FAIL on a correct result. None can turn a failing result into a pass on a wrong one.
+A proper fix is a conformance case (packages/protocol/conformance) plus the matching Python change, which needs the owner's
+go-ahead because it touches the evaluation environment.
+
+1. Rotation reference frame (2026-11-26, e411854). Python compares the output's first frame with the input's FIRST frame.
+   JS compares it with the input's frame at spec.time.start_s. A trim that cut away a scene change failed closed in Python.
+2. End time past the clip (2026-11-26). Python expects end_s - start_s even when end_s > the input's duration, so "keep the first
+   30 seconds" of a 20 s clip fails (expected 30, got 20). JS clamps the end to the input's duration (checker/time.js).
+3. Frames over a time range (2026-11-26). Python counts frames over the whole input. JS counts over the part the spec asks for
+   ("a frame a second between 10 s and 20 s" is 10 frames, not the whole clip).
+4. Quality floor on a trimmed output (2026-11-26). Python compares the output with the input frame for frame from the start.
+   JS seeks the reference input to spec.time.start_s first.
+
+Known and NOT fixed: the container check is a substring match on the probe's format name, so mp4 and mov are
+indistinguishable (low impact: the executor writes the container the spec names).

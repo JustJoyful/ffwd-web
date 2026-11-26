@@ -186,12 +186,13 @@ export function nativeMeasure() {
       )?.[1];
       return last === undefined || last === "-inf" ? null : Number(last);
     },
-    async quality(ref, cand, width, height) {
+    async quality(ref, cand, width, height, refStartS = 0) {
       const prep = `fps=${QUALITY_SAMPLE_FPS},scale=${width}:${height}:flags=bicubic,format=yuv420p`;
       const graph = `[0:v]${prep},split[a1][a2];[1:v]${prep},split[b1][b2];[a1][b1]ssim;[a2][b2]psnr`;
       const log = stderrOf([
         "-i",
         cand,
+        ...(refStartS > 0 ? ["-ss", String(refStartS)] : []),
         "-i",
         ref,
         "-filter_complex",

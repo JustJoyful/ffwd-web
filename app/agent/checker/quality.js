@@ -38,7 +38,7 @@ export function qualityApplies(spec, inputProbe) {
  * @param {import("./result.js").Check[]} checks appended to
  * @param {Record<string, unknown>} measurements filled in
  * @param {object[]} vids the output's video streams
- * @param {{ quality(ref: unknown, cand: unknown, w: number, h: number): Promise<{ ssim: number, psnr_db: number } | null> }} measure
+ * @param {{ quality(ref: unknown, cand: unknown, w: number, h: number, refStartS?: number): Promise<{ ssim: number, psnr_db: number } | null> }} measure
  */
 export async function qualityChecks(
   spec,
@@ -63,7 +63,10 @@ export async function qualityChecks(
   let q = null;
   if (vids.length && inp && inputs?.length) {
     const [w, h] = displaySize(inp);
-    q = await measure.quality(inputs[0], output, w, h);
+    // A trimmed output starts at the spec's start time: compare it with the input from there, frame for frame, not from
+    // the input's first frame (which would pit different parts of the video against each other).
+    const startS = isSet(spec.time?.start_s) ? spec.time.start_s : 0;
+    q = await measure.quality(inputs[0], output, w, h, startS);
   }
   measurements.quality = q;
   for (const [key, field] of [

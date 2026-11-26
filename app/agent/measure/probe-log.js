@@ -52,6 +52,9 @@ export function parseFfmpegProbe(log, sizeBytes) {
   let current = null;
   for (const line of log.split("\n")) {
     const m = /^\s*Stream #0:(\d+)[^:]*: (\w+): (.*)$/.exec(line);
+    // A cover picture inside an audio or video file ("mjpeg ... 90k tbr ... (attached pic)") is a still image, not a video
+    // stream: counting it made an mp3 with cover art look like it has a picture (and "fps" 90000, from its tbr).
+    if (m && /\(attached pic\)\s*$/.test(line)) continue;
     if (m) {
       const type = KINDS[m[2]] ?? "unknown";
       const parts = splitTopLevel(m[3]);

@@ -100,15 +100,19 @@ export class BrowserMeasure {
     return last === undefined || last === "-inf" ? null : Number(last);
   }
 
-  async quality(ref, cand, width, height) {
+  async quality(ref, cand, width, height, refStartS = 0) {
     const prep = `fps=${QUALITY_SAMPLE_FPS},scale=${width}:${height}:flags=bicubic,format=yuv420p`;
     const graph = `[0:v]${prep},split[a1][a2];[1:v]${prep},split[b1][b2];[a1][b1]ssim;[a2][b2]psnr`;
     const r = await this.session.exec([
       ...HEAD,
       ...IN(cand),
+      // the reference starts where the candidate does (a trimmed output), seeked before the input like a trim
+      ...(refStartS > 0 ? ["-ss", String(refStartS)] : []),
       ...IN(ref),
       ...["-filter_complex", graph, ...NULL_OUT],
     ]);
+    // like loudness(): a graph that failed can still print a partial summary, which is not a measurement
+    if (r.code !== 0) return null;
     const ssim = [...r.log.matchAll(/SSIM .*? All:([\d.]+)/g)];
     const psnr = [...r.log.matchAll(/PSNR .*? average:([\d.inf]+)/g)];
     if (!ssim.length || !psnr.length) return null;

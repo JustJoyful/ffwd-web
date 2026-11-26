@@ -43,3 +43,24 @@ describe("BrowserMeasure.thumbnail", () => {
     expect(bad.files.size).toBe(0); // one failed run must not break every later thumbnail
   });
 });
+
+describe("BrowserMeasure.quality", () => {
+  const SUMMARY =
+    "[Parsed_ssim_9 @ 0x1] SSIM Y:0.99 U:0.99 V:0.99 All:0.990000 (20.0)\n[Parsed_psnr_10 @ 0x2] PSNR y:40 u:40 v:40 average:40.000000 min:39 max:41\n";
+  const withLog = (code) => ({
+    exec: async () => ({ code, log: SUMMARY, timedOut: false }),
+  });
+  test("reads the summary of a graph that ran", async () => {
+    expect(
+      await new BrowserMeasure(withLog(0)).quality("a", "b", 64, 36),
+    ).toEqual({
+      ssim: 0.99,
+      psnr_db: 40,
+    });
+  });
+  test("a graph that failed is not a measurement, even if it printed a summary", async () => {
+    expect(
+      await new BrowserMeasure(withLog(1)).quality("a", "b", 64, 36),
+    ).toBeNull();
+  });
+});

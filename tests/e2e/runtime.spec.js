@@ -257,3 +257,56 @@ test("a trim whose cut-off part holds a scene change still passes the rotation c
   });
   expect(r.result.passed, JSON.stringify(r.result.checks)).toBe(true);
 });
+
+test("quality of a trimmed output is measured against the input from the cut, not from its first frame", async () => {
+  // Same clip as the scene-change test: the first 2 s are one picture, the rest another. The output is the last 2 s.
+  const r = await inPage(async (rt) => {
+    const made = await rt.session.exec(
+      [
+        ...["-hide_banner", "-nostdin", "-y"],
+        ...["-filter_threads", "1", "-filter_complex_threads", "1"],
+        ...["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=2"],
+        ...["-f", "lavfi", "-i", "smptebars=size=640x360:rate=25:duration=3"],
+        ...[
+          "-filter_complex",
+          "[0:v][1:v]concat=n=2:v=1:a=0[v]",
+          "-map",
+          "[v]",
+        ],
+        ...["-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p"],
+        ...["-threads", "4", "quality-in.mp4"],
+      ],
+      { timeoutMs: 120_000 },
+    );
+    if (made.code !== 0) return { error: made.log.slice(-300) };
+    const input = await rt.adopt("quality-in.mp4");
+    rt.executor.setInputs({ clip: input });
+    const run = await rt.executor.run({
+      args: [
+        "-i",
+        "{in:clip}",
+        "-ss",
+        "3",
+        "-c:v",
+        "libx264",
+        "-crf",
+        "12",
+        "-preset",
+        "ultrafast",
+        "{out:out1}",
+      ],
+      inputs: ["clip"],
+      outputs: ["out1"],
+      specs: [{ id: "out1", kind: "video", container: "mp4" }],
+    });
+    if (!run.ok) return { error: run.log };
+    const out = run.outputs.out1;
+    return {
+      fromFirstFrame: await rt.measure.quality(input, out, 640, 360, 0),
+      fromTheCut: await rt.measure.quality(input, out, 640, 360, 3),
+    };
+  });
+  expect(r.error, r.error).toBeUndefined();
+  expect(r.fromFirstFrame.ssim).toBeLessThan(0.9); // pitting the first scene against the cut-out second one
+  expect(r.fromTheCut.ssim).toBeGreaterThan(0.95); // the same picture, re-encoded at a high quality
+});

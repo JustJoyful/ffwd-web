@@ -18,6 +18,9 @@ import { usesStreamCopyOnly } from "../validator.js";
 import { checkFrames } from "./frames.js";
 import { inputOffsetMs, measureOffset } from "./offset.js";
 import { netRotationCw } from "./orientation.js";
+import { expectedDuration } from "./time.js";
+
+export { expectedDuration };
 import { displaySize, qualityChecks } from "./quality.js";
 import { add, result } from "./result.js";
 
@@ -42,15 +45,6 @@ const isSet = (x) => x !== null && x !== undefined;
 const setFields = (o) =>
   Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => isSet(v)));
 const errName = (e) => (e instanceof Error ? e.name : "Error");
-
-/** The duration the spec asks for, or null when it does not say. (Python: `_expected_duration`.) */
-export function expectedDuration(t, inputProbe) {
-  const { start_s: start, end_s: end } = t;
-  if (isSet(start) && isSet(end)) return end - start;
-  if (isSet(start) && isSet(inputProbe.duration_s))
-    return inputProbe.duration_s - start;
-  return isSet(end) ? end : null;
-}
 
 /** Invariants every output keeps unless the spec says otherwise (v1.2). (Python: `_implicit_checks`.) */
 export async function implicitChecks(

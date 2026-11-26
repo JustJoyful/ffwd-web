@@ -1,6 +1,7 @@
 // Frame-count checks for image_sequence outputs (training/env/checker.py `expected_frame_range`, `_check_frames`).
 import { FRAME_COUNT_TOLERANCE, FRAME_SAMPLE_EPS_FRAMES } from "../config.js";
 import { add, result } from "./result.js";
+import { expectedDuration } from "./time.js";
 
 /**
  * (min, max) accepted frame count for "one frame every interval_s" over duration_s. Samples are wanted at
@@ -49,11 +50,10 @@ export async function checkFrames(
     add(checks, "frames.expected_count", expected, files.length, ok);
   } else if (frames.interval_s && inputProbe.duration_s) {
     const vid = inputProbe.streams.find((s) => s.type === "video") ?? {};
-    const [lo, hi] = expectedFrameRange(
-      inputProbe.duration_s,
-      frames.interval_s,
-      vid.fps,
-    );
+    // over the part of the video the spec asks for ("a frame a second between 10 and 20 s" is 10 frames, not the whole clip)
+    const span =
+      expectedDuration(spec.time ?? {}, inputProbe) ?? inputProbe.duration_s;
+    const [lo, hi] = expectedFrameRange(span, frames.interval_s, vid.fps);
     const n = files.length;
     add(
       checks,
