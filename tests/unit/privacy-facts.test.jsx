@@ -62,11 +62,23 @@ describe("the privacy page: feedback", () => {
   test("states what is sent, when, where it goes, and that it is separate from analytics", () => {
     const t = text();
     expect(t).toContain("Feedback you choose to send");
-    expect(t).toMatch(/sends nothing unless you click Send/);
-    expect(t).toMatch(/request text you typed, with your file's name removed/);
+    expect(t).toMatch(/Nothing is sent unless you click Send/);
+    expect(t).toMatch(
+      /request text you typed, with your file's name removed, an optional note/,
+    );
+    expect(t).toMatch(
+      /a failure category from a fixed list, and the app and model version/,
+    );
     expect(t).toMatch(/Not sent: your video, your file names/);
+    expect(t).toContain(
+      "Your request text (not your video) may be used to improve ffwd's model.",
+    );
     expect(t).toMatch(/database that ffwd's owner can read/);
-    expect(t).toMatch(/kept until the owner deletes it/);
+    expect(t).toContain(
+      "Requests I review and copy into the training set (cleaned of anything personal) are kept there.",
+    );
+    expect(t).toMatch(/raw feedback is deleted after 90 days/);
+    expect(t).not.toMatch(/kept until the owner deletes it/);
     expect(t).toMatch(/no IP address, no account and no analytics ID/);
     expect(t).toMatch(/works even if the counting is off/);
   });

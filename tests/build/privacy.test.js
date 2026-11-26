@@ -68,8 +68,15 @@ test("the feedback section is in the built page: opt-in, what is sent, where it 
   const s = doc.querySelector("#feedback");
   expect(s).not.toBeNull();
   expect(s.querySelector("h2").textContent).toBe("Feedback you choose to send");
-  expect(s.textContent).toMatch(/nothing unless you click Send/);
+  expect(s.textContent).toMatch(/Nothing is sent unless you click Send/);
   expect(s.textContent).toMatch(/Not sent: your video, your file names/);
-  expect(s.textContent).toMatch(/kept until the owner deletes it/);
+  expect(s.textContent).toContain(
+    "Your request text (not your video) may be used to improve ffwd's model.",
+  );
+  expect(s.textContent).toContain(
+    "Requests I review and copy into the training set (cleaned of anything personal) are kept there.",
+  );
+  expect(s.textContent).toMatch(/raw feedback is deleted after 90 days/);
+  expect(s.textContent).not.toMatch(/kept until the owner deletes it/);
   expect(s.textContent).toMatch(/no IP address, no account and no analytics ID/);
 });

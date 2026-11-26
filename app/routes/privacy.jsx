@@ -234,24 +234,31 @@ export default function Privacy() {
             <h2 id="fb-h">Feedback you choose to send</h2>
             <div className="prose">
               <p>
-                When a job fails, or when you say a plan is wrong, ffwd may ask
-                whether you want to send feedback. It sends nothing unless you
-                click Send.
+                A quiet link (&ldquo;Not what I meant&rdquo;, &ldquo;Not what
+                you asked?&rdquo;, or one under a failure) lets you send
+                feedback. Nothing is sent unless you click Send, and you see the
+                exact message first.
               </p>
               <ul>
                 <li>
                   What is sent: the request text you typed, with your file's
-                  name removed, the plan ffwd showed, and a failure category
-                  from a fixed list. You can see the exact message before you
-                  send it.
+                  name removed, an optional note you can write, the plan ffwd
+                  showed, a failure category from a fixed list, and the app and
+                  model version.
                 </li>
                 <li>
                   Not sent: your video, your file names, or anything from the
                   counts above.
                 </li>
                 <li>
-                  It goes to a database that ffwd's owner can read. It is kept
-                  until the owner deletes it, to improve ffwd.
+                  Your request text (not your video) may be used to improve
+                  ffwd's model.
+                </li>
+                <li>
+                  It goes to a database that ffwd's owner can read. Requests I
+                  review and copy into the training set (cleaned of anything
+                  personal) are kept there. The raw feedback is deleted after 90
+                  days.
                 </li>
                 <li>
                   It is not linked to you: no IP address, no account and no
