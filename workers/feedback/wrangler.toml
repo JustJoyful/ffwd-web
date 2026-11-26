@@ -1,10 +1,13 @@
 name = "ffwd-feedback"
 main = "worker.js"
 compatibility_date = "2026-11-01"
+# the public address (ffwd-feedback.<account>.workers.dev) is needed; per-version preview addresses are not
+workers_dev = true
+preview_urls = false
 
 [vars]
-# Comma-separated origins allowed to post (the site's origin, no trailing slash). PLACEHOLDER: replace before deploying.
-ALLOWED_ORIGIN = "https://ffwd.example"
+# Comma-separated origins allowed to post (the site's origin, no trailing slash). Add the custom domain here when there is one.
+ALLOWED_ORIGIN = "https://ffwd.pages.dev"
 # Most rows accepted per UTC day (extra posts get 429), and how many days a row is kept before the daily cleanup removes it.
 DAILY_CAP = "500"
 RETENTION_DAYS = "90"
@@ -12,7 +15,7 @@ RETENTION_DAYS = "90"
 [[d1_databases]]
 binding = "DB"
 database_name = "ffwd-feedback"
-database_id = "PLACEHOLDER-run-wrangler-d1-create-and-paste-the-id"
+database_id = "a80ce48b-2fc1-4254-9b3d-3f9e3db95f4b"
 
 # Per-client rate limit with the Workers Rate Limiting binding (the account has no zone, so WAF rules are not available).
 # The Worker calls env.LIMITER.limit({ key: CF-Connecting-IP }): 5 posts per 60 s per address, then 429. `period` can only
