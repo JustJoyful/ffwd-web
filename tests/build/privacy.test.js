@@ -47,10 +47,11 @@ test("the five-row table of COPY_PAGE section 3 is present", () => {
   ]);
 });
 
-test("a how-to-check list, and the placeholders stay visible until the owner fills them", () => {
+test("a how-to-check list; the one placeholder left is the PostHog IP-capture note, kept until analytics is switched on", () => {
   expect($$(".how ol li").length).toBeGreaterThanOrEqual(3);
-  expect(text).toContain("[contact address]");
-  expect(text).toContain("[Confirm on the built site before publishing.]");
+  expect(text).not.toContain("[contact address]");
+  expect(text).not.toContain("[Confirm on the built site");
+  expect(text).toContain("github.com/JustJoyful/ffwd-web");
   expect(text).toContain(
     "[Confirm IP capture is off in the PostHog project settings before publishing.]",
   );

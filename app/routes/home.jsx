@@ -472,7 +472,6 @@ export default function Home() {
                 <p>
                   Open your browser's developer tools, watch the network tab
                   while a job runs, and look for your video. It is not there.
-                  [Confirm on the built site before publishing.]
                 </p>
               </details>
             </div>
@@ -539,9 +538,6 @@ export default function Home() {
                   I am still testing it. The final results are not in, and this
                   page will not quote a number until they are.
                 </p>
-                <p className="sign">
-                  Joydeep Das <span>[role line]</span>
-                </p>
               </div>
             </div>
             <div className="results rv">
@@ -604,7 +600,7 @@ export default function Home() {
               Site source
             </a>
           </nav>
-          <p>Licensed under GPL-3.0. [contact address]</p>
+          <p>Licensed under GPL-3.0.</p>
         </div>
         <p className="foot__credit">
           Sample footage:{" "}

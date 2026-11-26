@@ -56,7 +56,7 @@ export function SiteFooter({ credit = false }) {
             Site source
           </a>
         </nav>
-        <p>Licensed under GPL-3.0. [contact address]</p>
+        <p>Licensed under GPL-3.0.</p>
       </div>
       {credit && (
         <p className="foot__credit">

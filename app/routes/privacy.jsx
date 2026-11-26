@@ -99,7 +99,6 @@ export default function Privacy() {
                     categories and numbers listed below.
                   </li>
                 </ol>
-                <p>[Confirm on the built site before publishing.]</p>
               </details>
             </div>
             <div className="ledger">
@@ -290,7 +289,14 @@ export default function Privacy() {
           <section aria-labelledby="ask-h">
             <h2 id="ask-h">Questions</h2>
             <p className="prose">
-              Write to <span>[contact address]</span>.
+              Open an issue at{" "}
+              <a
+                href="https://github.com/JustJoyful/ffwd-web/issues"
+                rel="noopener"
+              >
+                github.com/JustJoyful/ffwd-web
+              </a>
+              .
             </p>
           </section>
         </div>

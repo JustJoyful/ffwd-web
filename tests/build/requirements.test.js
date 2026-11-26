@@ -58,5 +58,5 @@ test("no placeholder text other than the known brackets", () => {
   const body = doc.body.cloneNode(true);
   body.querySelectorAll("script").forEach((e) => e.remove());
   const brackets = body.textContent.match(/\[[^\]]*\]/g) ?? [];
-  expect(brackets.filter((b) => b !== "[contact address]")).toEqual([]);
+  expect(brackets).toEqual([]);
 });
