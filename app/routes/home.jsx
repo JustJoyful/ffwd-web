@@ -60,7 +60,9 @@ export default function Home() {
           <a href="/chores">Chores</a>
           <a href="#checked">How it checks</a>
           <a href="/privacy">Privacy</a>
-          <a href="#">GitHub</a>
+          <a href="https://github.com/JustJoyful/ffwd" rel="noopener">
+            GitHub
+          </a>
         </nav>
         <div className="nav__end">
           <a className="btn btn--sm btn--ghost" href="/app" data-choose="">
@@ -595,7 +597,12 @@ export default function Home() {
             <a href="/privacy">Privacy</a>
             <a href="/requirements">System requirements</a>
             <a href="#research">Research</a>
-            <a href="#">GitHub</a>
+            <a href="https://github.com/JustJoyful/ffwd" rel="noopener">
+              GitHub
+            </a>
+            <a href="https://github.com/JustJoyful/ffwd-web" rel="noopener">
+              Site source
+            </a>
           </nav>
           <p>Licensed under GPL-3.0. [contact address]</p>
         </div>
