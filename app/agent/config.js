@@ -42,6 +42,17 @@ export const ORIENTATION_MIN_GAP = 4.0;
 export const FFMPEG_CORE_BASE = (
   import.meta.env?.VITE_FFMPEG_CORE_BASE || "/ffmpeg"
 ).replace(/\/+$/, "");
+// sha256 of the three core files of @ffmpeg/core-mt 0.12.10 (dist/esm), checked before a core is used, wherever it is served from
+// (the site itself, or a CDN named by VITE_FFMPEG_CORE_BASE): a file that does not match is refused. tests/unit/ffmpeg-core.test.js
+// checks these against the installed package, so changing the package version without them fails a test.
+export const FFMPEG_CORE_SHA256 = {
+  "ffmpeg-core.js":
+    "270a2e6ff945e173238610669a3f7132df5f9c52698a9bf708cf5c2ab6bda0de",
+  "ffmpeg-core.wasm":
+    "be2c97605366b78f3f13e21b52e81a55a79e1f29c133b03a68ec187b1a2ec41a",
+  "ffmpeg-core.worker.js":
+    "f77898d631dc010b45c29c23cb4379c611a7d7b131bf591d08a656bb729a4ca3",
+};
 // Re-encodes deadlock in core-mt 0.12.10 when FFmpeg picks its own thread count (copy works, every encode hangs), so
 // the harness caps threads on every output. The same happens with auto decoder threads and two inputs (concat).
 export const FFMPEG_THREADS = 4;

@@ -1,7 +1,11 @@
 import "../styles/theme.css";
 import "../styles/pages.css";
 import { SiteFooter, SiteNav } from "../components/site/Shell.jsx";
-import { ANALYTICS_PERSISTENCE, RESPECT_DNT_GPC } from "../config.js";
+import {
+  ANALYTICS_PERSISTENCE,
+  RESPECT_DNT_GPC,
+  ffmpegCoreHost,
+} from "../config.js";
 import { EVENTS, TRANSPORT_KEYS } from "../lib/analytics.js";
 import { PATH_CHOICE, modelHost } from "../model/config.js";
 
@@ -271,6 +275,15 @@ export default function Privacy() {
               and no file names. After that the model is kept in your browser
               and is not downloaded again.
             </p>
+            {ffmpegCoreHost() && (
+              <p className="prose">
+                The video engine (ffmpeg, about 31 MB) is loaded from{" "}
+                <code>{ffmpegCoreHost()}</code>, a public software host. It sees
+                your IP address and your browser type, as any website does, and
+                nothing else. ffwd checks the files against a fixed fingerprint
+                before using them and refuses any file that does not match.
+              </p>
+            )}
           </section>
 
           <section id="device-memory" aria-labelledby="dev-h">

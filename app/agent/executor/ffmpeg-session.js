@@ -8,6 +8,7 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import {
   FFMPEG_CORE_BASE,
+  FFMPEG_CORE_SHA256,
   RUN_TIMEOUT_MS,
   RUN_WATCHDOG_GRACE_MS,
 } from "../config.js";
@@ -28,7 +29,21 @@ export class EngineStartError extends Error {
 async function coreBlobURL(url, type) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-  return URL.createObjectURL(new Blob([await res.arrayBuffer()], { type }));
+  const bytes = await res.arrayBuffer();
+  // Integrity: the core may come from a CDN, so the bytes must be exactly the pinned build (hash, not just a version in the URL).
+  const want = FFMPEG_CORE_SHA256[url.split("/").pop()];
+  if (want) {
+    const got = [
+      ...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+    ]
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    if (got !== want)
+      throw new Error(
+        `${url}: the file does not match the pinned sha256, so it was not used`,
+      );
+  }
+  return URL.createObjectURL(new Blob([bytes], { type }));
 }
 
 export class FfmpegSession {

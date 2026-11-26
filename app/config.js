@@ -44,3 +44,13 @@ export function analyticsSettings() {
       "https://us.i.posthog.com",
   };
 }
+
+/** The host that serves the ffmpeg core when it is not this site (named on the privacy page), else null. Same build-time
+ * value as FFMPEG_CORE_BASE in app/agent/config.js, read here so marketing pages never import the engine. */
+export const ffmpegCoreHost = () => {
+  try {
+    return new URL(import.meta.env?.VITE_FFMPEG_CORE_BASE || "").hostname;
+  } catch {
+    return null; // unset or relative: this site serves the core itself
+  }
+};

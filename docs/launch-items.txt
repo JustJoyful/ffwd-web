@@ -11,13 +11,13 @@ writes from the VITE_* values the build was made with.
    engine (it now says "ffwd's video engine didn't start", but the tool does not work).
    The core must be served from R2 (or split into files under 25 MiB). The plan in WEB_ARCHITECTURE.md section 8 is R2 on
    an assets host with CORS for the site origin, `Cross-Origin-Resource-Policy: cross-origin`, and a versioned path.
-   DONE in code (2026-11-26): FFMPEG_CORE_BASE is now the build-time value VITE_FFMPEG_CORE_BASE (an https URL without a
-   trailing slash, default "/ffmpeg"); the CSP connect-src names that host and build-info.json records it; check:release
-   then requires https and skips the in-build file check. STILL TO DO by the owner: create the R2 bucket, upload the three
-   files (ffmpeg-core.js, ffmpeg-core.wasm, ffmpeg-core.worker.js from @ffmpeg/core-mt 0.12.10) under a versioned path,
-   attach a public custom domain, set CORS (allowed origin = the site origin, GET, HEAD), and build with
-   VITE_FFMPEG_CORE_BASE=https://<assets host>/ffmpeg/0.12.10. The page fetches them with fetch() (so CORS is needed)
-   and turns them into blob URLs.
+   DONE (2026-11-25, overnight): R2 turned out not to be enabled on the account (it needs the owner in the dashboard), so the
+   core is served from the public npm CDN jsDelivr instead, the way the ffmpeg.wasm docs do it:
+   VITE_FFMPEG_CORE_BASE=https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.10/dist/esm (an immutable versioned URL, CORS *,
+   CORP cross-origin). The app checks the sha256 of all three files against fixed values (app/agent/config.js
+   FFMPEG_CORE_SHA256, tested against the installed package) before using them, so a changed or tampered file is refused.
+   The CSP connect-src names the host and the privacy page says that host sees visitors' IP addresses. Moving to R2 later
+   is only a change of VITE_FFMPEG_CORE_BASE (upload the same three files; the hashes still apply).
 
 2. The model manifest (D-053). VITE_MODEL_MANIFEST_URL must be set at build time to the https URL of ffwd-model.json at a
    PINNED Hugging Face tag or 40-hex commit (e.g. https://huggingface.co/<owner>/ffwd-0.6b/resolve/v1.0.0/ffwd-model.json),
